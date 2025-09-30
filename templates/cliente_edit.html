@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Cliente - EAD Oleohidráulica{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mt-2">
+    <div class="container-fluid">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/"><i class="bi bi-house"></i> Inicio</a></li>
+            <li class="breadcrumb-item"><a href="/clientes"><i class="bi bi-people"></i> Clientes</a></li>
+            <li class="breadcrumb-item"><a href="/cliente/{{ cliente_nombre|urlencode }}">{{ cliente_nombre }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Editar</li>
+        </ol>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="animate-slide">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-8 col-lg-6">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="bi bi-pencil"></i> Editar Cliente
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Información importante -->
+                    <div class="alert alert-info">
+                        <h6 class="alert-heading">
+                            <i class="bi bi-info-circle"></i> Información Importante
+                        </h6>
+                        <p class="mb-2">Al cambiar el nombre del cliente se actualizarán automáticamente:</p>
+                        <ul class="mb-0">
+                            <li><strong>{{ total_equipos }}</strong> equipos asociados</li>
+                            <li>Todos los registros de trabajos relacionados</li>
+                            <li>Referencias en reportes y estadísticas</li>
+                        </ul>
+                    </div>
+
+                    <!-- Formulario -->
+                    <form method="post" id="editClienteForm">
+                        <div class="mb-3">
+                            <label for="nuevo_nombre" class="form-label">
+                                <i class="bi bi-person"></i> Nombre del Cliente
+                            </label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="nuevo_nombre" 
+                                   name="nuevo_nombre"
+                                   value="{{ cliente_nombre }}" 
+                                   required
+                                   maxlength="100"
+                                   placeholder="Ingrese el nuevo nombre del cliente">
+                            <div class="form-text">
+                                Este nombre aparecerá en todos los equipos y trabajos asociados.
+                            </div>
+                        </div>
+
+                        <!-- Información actual -->
+                        <div class="card bg-light mb-3">
+                            <div class="card-body">
+                                <h6 class="card-title">
+                                    <i class="bi bi-info-circle text-primary"></i> Cliente Actual
+                                </h6>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <strong>Nombre:</strong><br>
+                                        <span class="text-muted">{{ cliente_nombre }}</span>
+                                    </div>
+                                    <div class="col-6">
+                                        <strong>Equipos:</strong><br>
+                                        <span class="badge bg-primary">{{ total_equipos }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botones -->
+                        <div class="d-flex justify-content-between">
+                            <a href="/cliente/{{ cliente_nombre|urlencode }}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-warning">
+                                <i class="bi bi-check-circle"></i> Actualizar Cliente
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Advertencias adicionales -->
+            <div class="card mt-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">
+                        <i class="bi bi-exclamation-triangle text-warning"></i> Consideraciones
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-12 col-md-6 mb-3">
+                            <div class="d-flex">
+                                <i class="bi bi-shield-check text-success me-2 mt-1"></i>
+                                <div>
+                                    <strong>Seguro</strong>
+                                    <small class="text-muted d-block">
+                                        No se perderán datos, solo se actualiza el nombre
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6 mb-3">
+                            <div class="d-flex">
+                                <i class="bi bi-lightning text-warning me-2 mt-1"></i>
+                                <div>
+                                    <strong>Instantáneo</strong>
+                                    <small class="text-muted d-block">
+                                        Los cambios se aplican inmediatamente
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6 mb-3">
+                            <div class="d-flex">
+                                <i class="bi bi-arrow-clockwise text-info me-2 mt-1"></i>
+                                <div>
+                                    <strong>Reversible</strong>
+                                    <small class="text-muted d-block">
+                                        Puedes cambiar el nombre nuevamente si es necesario
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6 mb-3">
+                            <div class="d-flex">
+                                <i class="bi bi-search text-primary me-2 mt-1"></i>
+                                <div>
+                                    <strong>Búsquedas</strong>
+                                    <small class="text-muted d-block">
+                                        Usa el nuevo nombre para buscar equipos y trabajos
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .animate-slide {
+        animation: slideIn 0.4s ease-out;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .form-control:focus {
+        border-color: #ffc107;
+        box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25);
+    }
+    
+    .btn-warning:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('editClienteForm');
+    const nombreInput = document.getElementById('nuevo_nombre');
+    const originalName = '{{ cliente_nombre }}';
+    
+    // Validación en tiempo real
+    nombreInput.addEventListener('input', function() {
+        const newName = this.value.trim();
+        const submitBtn = form.querySelector('button[type="submit"]');
+        
+        if (newName === originalName) {
+            submitBtn.innerHTML = '<i class="bi bi-info-circle"></i> Sin cambios';
+            submitBtn.className = 'btn btn-secondary';
+        } else if (newName.length > 0) {
+            submitBtn.innerHTML = '<i class="bi bi-check-circle"></i> Actualizar Cliente';
+            submitBtn.className = 'btn btn-warning';
+        } else {
+            submitBtn.innerHTML = '<i class="bi bi-x-circle"></i> Nombre requerido';
+            submitBtn.className = 'btn btn-danger';
+        }
+    });
+    
+    // Confirmación antes de enviar
+    form.addEventListener('submit', function(e) {
+        const newName = nombreInput.value.trim();
+        
+        if (newName === originalName) {
+            e.preventDefault();
+            alert('El nombre no ha cambiado. No es necesario actualizar.');
+            return false;
+        }
+        
+        if (!confirm(`¿Está seguro de cambiar el nombre del cliente de "${originalName}" a "${newName}"?\n\nEsto actualizará {{ total_equipos }} equipos.`)) {
+            e.preventDefault();
+            return false;
+        }
+        
+        // Mostrar indicador de carga
+        const submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Actualizando...';
+        submitBtn.disabled = true;
+    });
+    
+    // Enfocar el input al cargar
+    nombreInput.focus();
+    nombreInput.select();
+});
+</script>
+{% endblock %}

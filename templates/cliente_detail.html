@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+
+{% block title %}{{ cliente_nombre }} - Clientes - EAD Oleohidráulica{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mt-2">
+    <div class="container-fluid">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/"><i class="bi bi-house"></i> Inicio</a></li>
+            <li class="breadcrumb-item"><a href="/clientes"><i class="bi bi-people"></i> Clientes</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ cliente_nombre }}</li>
+        </ol>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="animate-slide">
+    <!-- Header del cliente -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h2 class="mb-1">
+                                <i class="bi bi-person-circle me-2"></i>{{ cliente_nombre }}
+                            </h2>
+                            <p class="mb-0 opacity-75">Información completa del cliente</p>
+                        </div>
+                        <div class="text-end">
+                            <a href="/cliente/{{ cliente_nombre|urlencode }}/editar" class="btn btn-light btn-sm">
+                                <i class="bi bi-pencil"></i> Editar
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas principales -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <i class="bi bi-truck fs-2 text-primary mb-2"></i>
+                    <h4 class="mb-0">{{ total_equipos }}</h4>
+                    <small class="text-muted">Equipos</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <i class="bi bi-wrench fs-2 text-success mb-2"></i>
+                    <h4 class="mb-0">{{ total_trabajos }}</h4>
+                    <small class="text-muted">Trabajos</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <i class="bi bi-currency-dollar fs-2 text-warning mb-2"></i>
+                    <h4 class="mb-0">${{ "{:,.0f}".format(total_gastado) }}</h4>
+                    <small class="text-muted">Total Invertido</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Gráfico de gastos mensuales -->
+        <div class="col-12 col-lg-8 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-graph-up text-success"></i> Gastos por Mes (Últimos 6 meses)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="gastosChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Equipos con más gastos -->
+        <div class="col-12 col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-truck text-primary"></i> Equipos por Gasto
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if equipos_gastos %}
+                    <div class="list-group list-group-flush">
+                        {% for item in equipos_gastos[:5] %}
+                        <div class="list-group-item px-0 py-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">{{ item.equipo.marca }} {{ item.equipo.modelo }}</h6>
+                                    <small class="text-muted">{{ item.total_trabajos }} trabajos</small>
+                                </div>
+                                <div class="text-end">
+                                    <strong class="text-success">${{ "{:,.0f}".format(item.total_gastado) }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center">No hay datos de gastos</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Equipos del cliente -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-truck text-primary"></i> Equipos del Cliente
+                    </h5>
+                    <a href="/equipos?search={{ cliente_nombre|urlencode }}" class="btn btn-sm btn-outline-primary">
+                        Ver todos <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if equipos %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Equipo</th>
+                                    <th>Año</th>
+                                    <th>N° Serie</th>
+                                    <th class="text-center">Trabajos</th>
+                                    <th class="text-end">Total Gastado</th>
+                                    <th class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for equipo in equipos %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi bi-truck me-2 text-primary"></i>
+                                            <div>
+                                                <strong>{{ equipo.marca }} {{ equipo.modelo }}</strong>
+                                                {% if equipo.dominio %}
+                                                <small class="text-muted d-block">{{ equipo.dominio }}</small>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark">{{ equipo.anio }}</span>
+                                    </td>
+                                    <td>
+                                        <code class="text-muted">{{ equipo.n_serie }}</code>
+                                    </td>
+                                    <td class="text-center">
+                                        {% set job_count = equipos_gastos|selectattr('equipo.id', 'equalto', equipo.id)|map(attribute='total_trabajos')|first or 0 %}
+                                        <span class="badge bg-secondary">{{ job_count }}</span>
+                                    </td>
+                                    <td class="text-end">
+                                        {% set total_gastado_equipo = equipos_gastos|selectattr('equipo.id', 'equalto', equipo.id)|map(attribute='total_gastado')|first or 0 %}
+                                        <strong class="text-success">${{ "{:,.0f}".format(total_gastado_equipo) }}</strong>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="/equipo/{{ equipo.id }}" class="btn btn-outline-primary" title="Ver detalles">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <a href="/trabajo/nuevo/{{ equipo.id }}" class="btn btn-outline-success" title="Nuevo trabajo">
+                                                <i class="bi bi-plus"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center">No hay equipos registrados</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trabajos recientes -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-wrench text-success"></i> Trabajos Recientes
+                    </h5>
+                    <a href="/trabajos?search={{ cliente_nombre|urlencode }}" class="btn btn-sm btn-outline-success">
+                        Ver todos <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if trabajos_recientes %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Equipo</th>
+                                    <th>Descripción</th>
+                                    <th class="text-end">Presupuesto</th>
+                                    <th class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for trabajo in trabajos_recientes %}
+                                <tr>
+                                    <td>
+                                        <span class="badge bg-info">{{ trabajo.date_done.strftime('%d/%m/%Y') }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi bi-truck me-2 text-primary"></i>
+                                            <small>{{ trabajo.equipment.marca }} {{ trabajo.equipment.modelo }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="text-truncate" style="max-width: 300px;" title="{{ trabajo.description }}">
+                                            {{ trabajo.description }}
+                                        </div>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong class="text-success">${{ "{:,.0f}".format(trabajo.budget) }}</strong>
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="/equipo/{{ trabajo.equipment.id }}" class="btn btn-sm btn-outline-primary" title="Ver equipo">
+                                            <i class="bi bi-truck"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center">No hay trabajos registrados</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .animate-slide {
+        animation: slideIn 0.4s ease-out;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .list-group-item {
+        border: none;
+        border-bottom: 1px solid rgba(0,0,0,0.1);
+    }
+    
+    .list-group-item:last-child {
+        border-bottom: none;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Gráfico de gastos mensuales
+    const ctx = document.getElementById('gastosChart').getContext('2d');
+    const gastosData = {{ gastos_mensuales | tojson }};
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: gastosData.map(item => item.month),
+            datasets: [{
+                label: 'Gastos ($)',
+                data: gastosData.map(item => item.total),
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString();
+                        }
+                    }
+                }
+            },
+            elements: {
+                point: {
+                    radius: 4,
+                    hoverRadius: 6
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

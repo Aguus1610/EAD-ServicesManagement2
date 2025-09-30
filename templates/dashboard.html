@@ -1,0 +1,881 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - EAD Oleohidráulica{% endblock %}
+
+{% block content %}
+<div class="animate-slide">
+    <!-- Widget de Información en Tiempo Real -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-gradient-info text-white info-widget">
+                <div class="card-body py-3">
+                    <div class="row align-items-center">
+                        <!-- Título y Reloj -->
+                        <div class="col-12 col-lg-4 mb-3 mb-lg-0">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-speedometer2 fs-3 me-3 opacity-75"></i>
+                                <div>
+                                    <h5 class="mb-1 fw-bold">Panel de Control</h5>
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-clock me-2"></i>
+                                        <span id="current-time" class="fw-bold">--:--:--</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Fecha Completa -->
+                        <div class="col-12 col-lg-4 mb-3 mb-lg-0">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-calendar3 fs-3 me-3 opacity-75"></i>
+                                <div>
+                                    <div id="current-date-full" class="fw-bold">Cargando fecha...</div>
+                                    <div id="current-date-short" class="small opacity-75">--/--/----</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Cotización Dólar -->
+                        <div class="col-12 col-lg-4">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-currency-dollar fs-3 me-3 opacity-75"></i>
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="small">USD Oficial:</span>
+                                        <span id="dolar-status" class="badge bg-success bg-opacity-75">
+                                            <i class="bi bi-wifi"></i>
+                                        </span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="small opacity-75">Venta:</span>
+                                        <span id="dolar-venta" class="fw-bold fs-6">$---.--</span>
+                                    </div>
+                                    <div id="dolar-info" class="small opacity-75 text-end">Actualizando...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Acciones Rápidas -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <small class="text-muted">Resumen de actividades</small>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-primary" onclick="refreshDashboard()">
+                        <i class="bi bi-arrow-clockwise"></i> Actualizar
+                    </button>
+                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#quickActionModal">
+                        <i class="bi bi-lightning-fill"></i> Acciones Rápidas
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tarjetas de estadísticas mejoradas -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="card stat-card text-center h-100" data-href="/equipos" style="cursor: pointer;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <i class="bi bi-truck fs-2" style="color: var(--ead-blue);"></i>
+                        <span class="badge bg-primary rounded-pill">Total</span>
+                    </div>
+                    <h3 class="mb-1 fw-bold">{{ total_equipment }}</h3>
+                    <p class="text-muted mb-2 small">Equipos Registrados</p>
+                    <div class="progress" style="height: 4px;">
+                        <div class="progress-bar bg-primary" style="width: 100%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-6 col-lg-3">
+            <div class="card stat-card text-center h-100" data-href="/trabajos" style="cursor: pointer;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <i class="bi bi-wrench fs-2 text-success"></i>
+                        <span class="badge bg-success rounded-pill">Total</span>
+                    </div>
+                    <h3 class="mb-1 fw-bold">{{ total_jobs }}</h3>
+                    <p class="text-muted mb-2 small">Trabajos Realizados</p>
+                    <div class="progress" style="height: 4px;">
+                        <div class="progress-bar bg-success" style="width: 100%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-6 col-lg-3">
+            <div class="card stat-card text-center h-100" style="cursor: pointer;" onclick="showUpcomingServices()">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <i class="bi bi-calendar-event fs-2 text-warning"></i>
+                        <span class="badge bg-warning rounded-pill">30 días</span>
+                    </div>
+                    <h3 class="mb-1 fw-bold">{{ total_upcoming }}</h3>
+                    <p class="text-muted mb-2 small">Próximos Servicios</p>
+                    <div class="progress" style="height: 4px;">
+                        <div class="progress-bar bg-warning" style="width: {% if total_upcoming > 0 %}{{ (total_upcoming / 10) * 100 }}{% else %}0{% endif %}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-6 col-lg-3">
+            <div class="card stat-card text-center h-100 {% if services_vencidos > 0 %}border-danger{% endif %}" style="cursor: pointer;" onclick="showOverdueServices()">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        {% if services_vencidos > 0 %}
+                        <i class="bi bi-exclamation-triangle fs-2 text-danger"></i>
+                        <span class="badge bg-danger rounded-pill pulse">¡Urgente!</span>
+                        {% else %}
+                        <i class="bi bi-check-circle fs-2 text-info"></i>
+                        <span class="badge bg-info rounded-pill">OK</span>
+                        {% endif %}
+                    </div>
+                    <h3 class="mb-1 fw-bold {% if services_vencidos > 0 %}text-danger{% else %}text-info{% endif %}">{{ services_vencidos }}</h3>
+                    <p class="text-muted mb-2 small">Servicios Vencidos</p>
+                    <div class="progress" style="height: 4px;">
+                        {% if services_vencidos > 0 %}
+                        <div class="progress-bar bg-danger" style="width: 100%"></div>
+                        {% else %}
+                        <div class="progress-bar bg-info" style="width: 100%"></div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Secciones principales mejoradas -->
+    <div class="row mb-4">
+        <div class="col-12 col-md-6 mb-3">
+            <div class="card h-100 main-action-card" data-href="/equipos" style="cursor: pointer;">
+                <div class="card-body text-center">
+                    <i class="bi bi-truck fs-1 mb-3" style="color: var(--ead-blue);"></i>
+                    <h5 class="card-title">Gestión de Equipos</h5>
+                    <p class="text-muted mb-3">Administra tus equipos, máquinas y vehículos</p>
+                    <div class="d-grid gap-2">
+                        <a href="/equipos" class="btn btn-primary" onclick="event.stopPropagation();">
+                            <i class="bi bi-list-ul"></i> Ver Equipos ({{ total_equipment }})
+                        </a>
+                        <a href="/equipo/nuevo" class="btn btn-outline-primary" onclick="event.stopPropagation();">
+                            <i class="bi bi-plus-circle"></i> Nuevo Equipo
+                        </a>
+                    </div>
+                </div>
+                <div class="card-overlay">
+                    <i class="bi bi-arrow-right-circle-fill"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-12 col-md-6 mb-3">
+            <div class="card h-100 main-action-card" data-href="/trabajos" style="cursor: pointer;">
+                <div class="card-body text-center">
+                    <i class="bi bi-wrench fs-1 text-success mb-3"></i>
+                    <h5 class="card-title">Gestión de Trabajos</h5>
+                    <p class="text-muted mb-3">Registra trabajos y mantenimientos realizados</p>
+                    <div class="d-grid gap-2">
+                        <a href="/trabajos" class="btn btn-success" onclick="event.stopPropagation();">
+                            <i class="bi bi-list-ul"></i> Ver Trabajos ({{ total_jobs }})
+                        </a>
+                        <a href="/trabajo/nuevo" class="btn btn-outline-success" onclick="event.stopPropagation();">
+                            <i class="bi bi-plus-circle"></i> Nuevo Trabajo
+                        </a>
+                    </div>
+                </div>
+                <div class="card-overlay">
+                    <i class="bi bi-arrow-right-circle-fill"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Acciones adicionales -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Herramientas</h5>
+                    <div class="d-grid gap-2 d-md-flex">
+                        <a href="/estadisticas" class="btn btn-outline-info">
+                            <i class="bi bi-graph-up"></i> Ver Estadísticas
+                        </a>
+                        <a href="/api/export/equipos" class="btn btn-outline-secondary">
+                            <i class="bi bi-download"></i> Exportar Equipos
+                        </a>
+                        <a href="/api/export/trabajos" class="btn btn-outline-secondary">
+                            <i class="bi bi-download"></i> Exportar Trabajos
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Próximos servicios mejorados -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-calendar-check"></i> Próximos Servicios
+                    </h5>
+                    <div class="d-flex gap-2">
+                        <select class="form-select form-select-sm" id="serviceFilter" style="width: auto;" onchange="filterServices()">
+                            <option value="all">Todos los servicios</option>
+                            <option value="overdue">Vencidos</option>
+                            <option value="today">Hoy</option>
+                            <option value="week">Esta semana</option>
+                            <option value="month">Este mes</option>
+                        </select>
+                        <button class="btn btn-sm btn-outline-primary" onclick="refreshServices()">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    {% if upcoming_services %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0" id="servicesTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                                        </div>
+                                    </th>
+                                    <th>Equipo</th>
+                                    <th class="d-none d-md-table-cell">Propietario</th>
+                                    <th>Fecha</th>
+                                    <th>Estado</th>
+                                    <th class="d-none d-sm-table-cell">Presupuesto</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for service in upcoming_services %}
+                                <tr data-days="{{ service.days_left }}" data-status="{{ service.status }}">
+                                    <td>
+                                        <div class="form-check">
+                                            <input class="form-check-input service-checkbox" type="checkbox" value="{{ loop.index }}">
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if service.days_left < 0 %}
+                                                <i class="bi bi-exclamation-triangle text-danger me-2"></i>
+                                            {% elif service.days_left <= 7 %}
+                                                <i class="bi bi-clock text-warning me-2"></i>
+                                            {% else %}
+                                                <i class="bi bi-check-circle text-success me-2"></i>
+                                            {% endif %}
+                                            <div>
+                                                <strong>{{ service.equipment }}</strong>
+                                                <small class="text-muted d-block d-md-none">{{ service.propietario }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="d-none d-md-table-cell">{{ service.propietario or '-' }}</td>
+                                    <td>
+                                        <span class="fw-medium">{{ service.date }}</span>
+                                    </td>
+                                    <td>
+                                        {% if service.days_left < 0 %}
+                                            <span class="badge bg-danger pulse">Vencido ({{ -service.days_left }} días)</span>
+                                        {% elif service.days_left == 0 %}
+                                            <span class="badge bg-warning">Hoy</span>
+                                        {% elif service.days_left <= 7 %}
+                                            <span class="badge bg-warning">{{ service.days_left }} días</span>
+                                        {% else %}
+                                            <span class="badge bg-success">{{ service.days_left }} días</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="d-none d-sm-table-cell">
+                                        <span class="fw-medium">${{ "{:,.0f}".format(service.budget) }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                                                <i class="bi bi-three-dots"></i>
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item" href="#" onclick="createWorkOrder('{{ service.equipment }}')">
+                                                    <i class="bi bi-plus-circle me-2"></i>Crear Trabajo
+                                                </a></li>
+                                                <li><a class="dropdown-item" href="#" onclick="postponeService('{{ service.equipment }}')">
+                                                    <i class="bi bi-calendar-plus me-2"></i>Posponer
+                                                </a></li>
+                                                <li><a class="dropdown-item" href="#" onclick="markAsCompleted('{{ service.equipment }}')">
+                                                    <i class="bi bi-check-circle me-2"></i>Marcar Completado
+                                                </a></li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li><a class="dropdown-item" href="#" onclick="sendReminder('{{ service.equipment }}')">
+                                                    <i class="bi bi-bell me-2"></i>Enviar Recordatorio
+                                                </a></li>
+                                            </ul>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- Acciones masivas -->
+                    <div class="card-footer bg-light d-none" id="bulkActions">
+                        <div class="d-flex gap-2 align-items-center">
+                            <small class="text-muted me-auto">
+                                <span id="selectedCount">0</span> servicios seleccionados
+                            </small>
+                            <button class="btn btn-sm btn-success" onclick="bulkCreateWork()">
+                                <i class="bi bi-plus-circle"></i> Crear Trabajos
+                            </button>
+                            <button class="btn btn-sm btn-warning" onclick="bulkPostpone()">
+                                <i class="bi bi-calendar-plus"></i> Posponer
+                            </button>
+                            <button class="btn btn-sm btn-info" onclick="bulkReminder()">
+                                <i class="bi bi-bell"></i> Recordatorios
+                            </button>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-calendar-x fs-1 mb-3"></i>
+                        <h6>No hay servicios programados</h6>
+                        <p class="mb-3">Registra trabajos con fechas de próximo servicio para ver recordatorios aquí</p>
+                        <a href="/trabajo/nuevo" class="btn btn-primary">
+                            <i class="bi bi-plus-circle"></i> Registrar Trabajo
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Acciones Rápidas -->
+<div class="modal fade" id="quickActionModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="background-color: var(--ead-blue); color: white;">
+                <h5 class="modal-title">
+                    <i class="bi bi-lightning-fill"></i> Acciones Rápidas
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <!-- Crear Equipo -->
+                    <div class="col-12 col-md-6">
+                        <div class="card h-100 quick-action-card" onclick="window.location.href='/equipo/nuevo'">
+                            <div class="card-body text-center">
+                                <i class="bi bi-truck fs-1 mb-3" style="color: var(--ead-blue);"></i>
+                                <h6 class="card-title">Nuevo Equipo</h6>
+                                <p class="card-text small text-muted">Registrar un nuevo equipo o maquinaria</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Crear Trabajo -->
+                    <div class="col-12 col-md-6">
+                        <div class="card h-100 quick-action-card" onclick="window.location.href='/trabajo/nuevo'">
+                            <div class="card-body text-center">
+                                <i class="bi bi-wrench fs-1 text-success mb-3"></i>
+                                <h6 class="card-title">Nuevo Trabajo</h6>
+                                <p class="card-text small text-muted">Registrar trabajo o mantenimiento</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Búsqueda Rápida -->
+                    <div class="col-12 col-md-6">
+                        <div class="card h-100 quick-action-card" onclick="focusGlobalSearch()">
+                            <div class="card-body text-center">
+                                <i class="bi bi-search fs-1 text-info mb-3"></i>
+                                <h6 class="card-title">Búsqueda Global</h6>
+                                <p class="card-text small text-muted">Buscar en equipos y trabajos</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Estadísticas -->
+                    <div class="col-12 col-md-6">
+                        <div class="card h-100 quick-action-card" onclick="window.location.href='/estadisticas'">
+                            <div class="card-body text-center">
+                                <i class="bi bi-graph-up fs-1 text-warning mb-3"></i>
+                                <h6 class="card-title">Ver Estadísticas</h6>
+                                <p class="card-text small text-muted">Análisis y reportes detallados</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Exportar Datos -->
+                    <div class="col-12">
+                        <div class="card quick-action-card">
+                            <div class="card-body">
+                                <h6 class="card-title mb-3">
+                                    <i class="bi bi-download me-2"></i>Exportar Datos
+                                </h6>
+                                <div class="d-grid gap-2 d-md-flex">
+                                    <a href="/api/export/equipos" class="btn btn-outline-primary">
+                                        <i class="bi bi-truck"></i> Equipos CSV
+                                    </a>
+                                    <a href="/api/export/trabajos" class="btn btn-outline-success">
+                                        <i class="bi bi-wrench"></i> Trabajos CSV
+                                    </a>
+                                    <a href="/api/backup" class="btn btn-outline-info">
+                                        <i class="bi bi-database"></i> Backup DB
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Widget de información en tiempo real */
+    .info-widget {
+        background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        border: none;
+        box-shadow: 0 4px 15px rgba(23, 162, 184, 0.3);
+    }
+    
+    .info-widget:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(23, 162, 184, 0.4);
+        transition: all 0.3s ease;
+    }
+    
+    .info-widget .badge {
+        animation: pulse 2s infinite;
+    }
+    
+    /* Efectos de carga para el dólar */
+    .badge.bg-warning {
+        animation: blink 1s infinite;
+    }
+    
+    @keyframes blink {
+        0%, 50% { opacity: 1; }
+        51%, 100% { opacity: 0.5; }
+    }
+    
+    /* Responsive para el widget */
+    @media (max-width: 992px) {
+        .info-widget .col-12 {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        
+        .info-widget .col-12:last-child {
+            margin-bottom: 0;
+        }
+    }
+    
+    .pulse {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.7; }
+        100% { opacity: 1; }
+    }
+    
+    .quick-action-card {
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 1px solid var(--border-color);
+    }
+    
+    .quick-action-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        border-color: var(--primary-color);
+    }
+    
+    .service-checkbox:checked ~ * {
+        background-color: rgba(var(--bs-primary-rgb), 0.1);
+    }
+    
+    .stat-card[data-href]:hover {
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    /* Tarjetas principales clickeables */
+    .main-action-card {
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+    }
+    
+    .main-action-card:hover {
+        transform: translateY(-5px) scale(1.02);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+        border-color: var(--primary-color);
+    }
+    
+    .main-action-card .card-overlay {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        opacity: 0;
+        transition: all 0.3s ease;
+        color: var(--primary-color);
+        font-size: 1.5rem;
+    }
+    
+    .main-action-card:hover .card-overlay {
+        opacity: 1;
+        transform: scale(1.1);
+    }
+    
+    .main-action-card:hover .card-title {
+        color: var(--primary-color);
+    }
+    
+    .main-action-card:hover i.bi-truck {
+        color: var(--primary-color) !important;
+        transform: scale(1.1);
+    }
+    
+    .main-action-card:hover i.bi-wrench {
+        color: var(--success-color) !important;
+        transform: scale(1.1);
+    }
+    
+    /* Responsive para tarjetas principales */
+    @media (max-width: 768px) {
+        .main-action-card:hover {
+            transform: translateY(-2px) scale(1.01);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Variables globales para intervalos
+    let timeInterval;
+    let dolarInterval;
+    
+    // Función para actualizar fecha y hora usando API
+    async function updateDateTime() {
+        try {
+            const response = await fetch('/api/tiempo');
+            const data = await response.json();
+            
+            if (data.success) {
+                // Actualizar elementos de tiempo
+                const timeElement = document.getElementById('current-time');
+                const dateFullElement = document.getElementById('current-date-full');
+                const dateShortElement = document.getElementById('current-date-short');
+                
+                if (timeElement) timeElement.textContent = data.hora;
+                if (dateFullElement) dateFullElement.textContent = data.fecha_completa;
+                if (dateShortElement) dateShortElement.textContent = data.fecha_corta;
+            } else {
+                // Fallback a JavaScript local
+                updateDateTimeLocal();
+            }
+        } catch (error) {
+            console.warn('Error obteniendo tiempo del servidor, usando tiempo local:', error);
+            updateDateTimeLocal();
+        }
+    }
+    
+    // Función fallback para fecha y hora local
+    function updateDateTimeLocal() {
+        const now = new Date();
+        
+        // Nombres en español
+        const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+        const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        
+        // Formatear
+        const timeStr = now.toLocaleTimeString('es-ES');
+        const dateShort = now.toLocaleDateString('es-ES');
+        const dateFull = `${diasSemana[now.getDay()]}, ${now.getDate()} de ${meses[now.getMonth()]} de ${now.getFullYear()}`;
+        
+        // Actualizar elementos
+        const timeElement = document.getElementById('current-time');
+        const dateFullElement = document.getElementById('current-date-full');
+        const dateShortElement = document.getElementById('current-date-short');
+        
+        if (timeElement) timeElement.textContent = timeStr;
+        if (dateFullElement) dateFullElement.textContent = dateFull;
+        if (dateShortElement) dateShortElement.textContent = dateShort;
+    }
+    
+    // Función para actualizar cotización del dólar
+    async function updateDolarCotization() {
+        const ventaElement = document.getElementById('dolar-venta');
+        const infoElement = document.getElementById('dolar-info');
+        const statusElement = document.getElementById('dolar-status');
+        
+        try {
+            // Mostrar estado de carga
+            if (statusElement) {
+                statusElement.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+                statusElement.className = 'badge bg-warning bg-opacity-75';
+            }
+            
+            const response = await fetch('/api/dolar');
+            const data = await response.json();
+            
+            if (data.success && data.precio_venta > 0) {
+                // Actualizar precio
+                if (ventaElement) {
+                    ventaElement.textContent = `$${data.precio_venta.toFixed(2)}`;
+                }
+                
+                // Actualizar información
+                if (infoElement) {
+                    infoElement.textContent = `${data.fuente} - ${data.fecha_actualizacion}`;
+                }
+                
+                // Estado exitoso
+                if (statusElement) {
+                    statusElement.innerHTML = '<i class="bi bi-check-circle"></i>';
+                    statusElement.className = 'badge bg-success bg-opacity-75';
+                }
+            } else {
+                // Error en los datos
+                if (ventaElement) ventaElement.textContent = 'N/D';
+                if (infoElement) infoElement.textContent = data.error || 'Sin datos';
+                if (statusElement) {
+                    statusElement.innerHTML = '<i class="bi bi-exclamation-triangle"></i>';
+                    statusElement.className = 'badge bg-warning bg-opacity-75';
+                }
+            }
+        } catch (error) {
+            console.error('Error obteniendo cotización del dólar:', error);
+            
+            // Estado de error
+            if (ventaElement) ventaElement.textContent = 'Error';
+            if (infoElement) infoElement.textContent = 'Sin conexión';
+            if (statusElement) {
+                statusElement.innerHTML = '<i class="bi bi-wifi-off"></i>';
+                statusElement.className = 'badge bg-danger bg-opacity-75';
+            }
+        }
+    }
+    
+    // Inicializar intervalos
+    function initializeWidgets() {
+        // Actualizar inmediatamente
+        updateDateTime();
+        updateDolarCotization();
+        
+        // Configurar intervalos
+        timeInterval = setInterval(updateDateTime, 1000); // Cada segundo
+        dolarInterval = setInterval(updateDolarCotization, 300000); // Cada 5 minutos
+    }
+    
+    // Limpiar intervalos al salir
+    function cleanupWidgets() {
+        if (timeInterval) clearInterval(timeInterval);
+        if (dolarInterval) clearInterval(dolarInterval);
+    }
+    
+    // Inicializar al cargar la página
+    initializeWidgets();
+    
+    // Manejar clicks en tarjetas estadísticas y principales
+    document.addEventListener('DOMContentLoaded', function() {
+        // Tarjetas estadísticas
+        const statCards = document.querySelectorAll('.stat-card[data-href]');
+        statCards.forEach(card => {
+            card.addEventListener('click', function() {
+                window.location.href = this.dataset.href;
+            });
+        });
+        
+        // Tarjetas principales de acción
+        const mainActionCards = document.querySelectorAll('.main-action-card[data-href]');
+        mainActionCards.forEach(card => {
+            card.addEventListener('click', function(e) {
+                // Solo navegar si no se hizo click en un botón
+                if (!e.target.closest('a, button')) {
+                    window.location.href = this.dataset.href;
+                }
+            });
+            
+            // Agregar efecto visual al hacer hover
+            card.addEventListener('mouseenter', function() {
+                this.style.cursor = 'pointer';
+            });
+        });
+    });
+    
+    // Funciones de servicios
+    function refreshDashboard() {
+        showNotification('Actualizando dashboard...', 'info');
+        setTimeout(() => {
+            location.reload();
+        }, 500);
+    }
+    
+    function refreshServices() {
+        // Simular actualización de servicios
+        showNotification('Servicios actualizados', 'success');
+    }
+    
+    function filterServices() {
+        const filter = document.getElementById('serviceFilter').value;
+        const rows = document.querySelectorAll('#servicesTable tbody tr');
+        
+        rows.forEach(row => {
+            const days = parseInt(row.dataset.days);
+            let show = true;
+            
+            switch(filter) {
+                case 'overdue':
+                    show = days < 0;
+                    break;
+                case 'today':
+                    show = days === 0;
+                    break;
+                case 'week':
+                    show = days >= 0 && days <= 7;
+                    break;
+                case 'month':
+                    show = days >= 0 && days <= 30;
+                    break;
+                default:
+                    show = true;
+            }
+            
+            row.style.display = show ? '' : 'none';
+        });
+    }
+    
+    function toggleSelectAll() {
+        const selectAll = document.getElementById('selectAll');
+        const checkboxes = document.querySelectorAll('.service-checkbox');
+        const bulkActions = document.getElementById('bulkActions');
+        
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = selectAll.checked;
+        });
+        
+        updateBulkActions();
+    }
+    
+    function updateBulkActions() {
+        const checkboxes = document.querySelectorAll('.service-checkbox:checked');
+        const bulkActions = document.getElementById('bulkActions');
+        const selectedCount = document.getElementById('selectedCount');
+        
+        if (checkboxes.length > 0) {
+            bulkActions.classList.remove('d-none');
+            selectedCount.textContent = checkboxes.length;
+        } else {
+            bulkActions.classList.add('d-none');
+        }
+    }
+    
+    // Event listeners para checkboxes
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('service-checkbox')) {
+            updateBulkActions();
+        }
+    });
+    
+    // Funciones de acciones individuales
+    function showUpcomingServices() {
+        document.getElementById('serviceFilter').value = 'month';
+        filterServices();
+        document.querySelector('#servicesTable').scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    function showOverdueServices() {
+        document.getElementById('serviceFilter').value = 'overdue';
+        filterServices();
+        document.querySelector('#servicesTable').scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    function createWorkOrder(equipment) {
+        showNotification(`Creando orden de trabajo para ${equipment}...`, 'info');
+        // Redirigir a formulario de trabajo
+        setTimeout(() => {
+            window.location.href = '/trabajo/nuevo';
+        }, 1000);
+    }
+    
+    function postponeService(equipment) {
+        const days = prompt(`¿Cuántos días desea posponer el servicio de ${equipment}?`, '30');
+        if (days && !isNaN(days)) {
+            showNotification(`Servicio pospuesto ${days} días`, 'success');
+        }
+    }
+    
+    function markAsCompleted(equipment) {
+        if (confirm(`¿Marcar como completado el servicio de ${equipment}?`)) {
+            showNotification('Servicio marcado como completado', 'success');
+        }
+    }
+    
+    function sendReminder(equipment) {
+        showNotification(`Recordatorio enviado para ${equipment}`, 'success');
+    }
+    
+    // Funciones de acciones masivas
+    function bulkCreateWork() {
+        const selected = document.querySelectorAll('.service-checkbox:checked').length;
+        if (confirm(`¿Crear órdenes de trabajo para ${selected} servicios?`)) {
+            showNotification(`${selected} órdenes de trabajo creadas`, 'success');
+        }
+    }
+    
+    function bulkPostpone() {
+        const selected = document.querySelectorAll('.service-checkbox:checked').length;
+        const days = prompt(`¿Cuántos días posponer los ${selected} servicios seleccionados?`, '30');
+        if (days && !isNaN(days)) {
+            showNotification(`${selected} servicios pospuestos ${days} días`, 'success');
+        }
+    }
+    
+    function bulkReminder() {
+        const selected = document.querySelectorAll('.service-checkbox:checked').length;
+        if (confirm(`¿Enviar recordatorios para ${selected} servicios?`)) {
+            showNotification(`${selected} recordatorios enviados`, 'success');
+        }
+    }
+    
+    function focusGlobalSearch() {
+        // Cerrar modal y enfocar búsqueda global si existe
+        const modal = bootstrap.Modal.getInstance(document.getElementById('quickActionModal'));
+        modal.hide();
+        
+        setTimeout(() => {
+            const searchInput = document.querySelector('input[type="search"]');
+            if (searchInput) {
+                searchInput.focus();
+            } else {
+                showNotification('Búsqueda global disponible en páginas de equipos y trabajos', 'info');
+            }
+        }, 300);
+    }
+</script>
+{% endblock %}

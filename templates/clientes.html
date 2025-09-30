@@ -1,0 +1,356 @@
+{% extends "base.html" %}
+
+{% block title %}Clientes - EAD Oleohidráulica{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mt-2">
+    <div class="container-fluid">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/"><i class="bi bi-house"></i> Inicio</a></li>
+            <li class="breadcrumb-item active" aria-current="page"><i class="bi bi-people"></i> Clientes</li>
+        </ol>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="animate-slide">
+    <!-- Header con búsqueda -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2><i class="bi bi-people" style="color: var(--ead-blue);"></i> Clientes</h2>
+                <div class="d-flex gap-2">
+                    <span class="badge bg-info fs-6">{{ total_clientes }} clientes</span>
+                </div>
+            </div>
+            
+            <!-- Barra de búsqueda -->
+            <form method="get" action="/clientes" class="mb-3">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" name="search" 
+                           placeholder="Buscar cliente por nombre..." 
+                           value="{{ search }}">
+                    <button class="btn btn-outline-secondary" type="submit">Buscar</button>
+                    {% if search %}
+                    <a href="/clientes" class="btn btn-outline-danger">Limpiar</a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Lista de clientes -->
+    <div class="row">
+        <div class="col-12">
+            {% if clientes %}
+            <!-- Vista móvil: Cards clickeables -->
+            <div class="d-md-none">
+                {% for cliente in clientes %}
+                <div class="card mb-3 cliente-card-mobile" data-href="/cliente/{{ cliente.nombre|urlencode }}" style="cursor: pointer;">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="card-title mb-1">
+                                    <i class="bi bi-person-circle me-2 text-primary"></i>
+                                    <strong>{{ cliente.nombre }}</strong>
+                                </h6>
+                                <div class="row g-2 mb-2">
+                                    <div class="col-6">
+                                        <small class="text-muted">
+                                            <i class="bi bi-truck"></i> {{ cliente.total_equipos }} equipos
+                                        </small>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">
+                                            <i class="bi bi-wrench"></i> {{ cliente.total_trabajos }} trabajos
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong class="text-success">
+                                            <i class="bi bi-currency-dollar"></i>${{ "{:,.0f}".format(cliente.total_gastado) }}
+                                        </strong>
+                                        <small class="text-muted d-block">Total invertido</small>
+                                    </div>
+                                    {% if cliente.ultimo_trabajo %}
+                                    <div class="text-end">
+                                        <small class="text-muted">Último trabajo:</small>
+                                        <small class="d-block fw-medium">{{ cliente.ultimo_trabajo.strftime('%d/%m/%Y') }}</small>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <div class="me-2">
+                                    <i class="bi bi-arrow-right-circle text-primary card-arrow"></i>
+                                </div>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-secondary" type="button" 
+                                            data-bs-toggle="dropdown" 
+                                            aria-expanded="false"
+                                            onclick="event.stopPropagation();"
+                                            id="dropdownMenuCliente{{ loop.index }}">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuCliente{{ loop.index }}">
+                                        <li><a class="dropdown-item" href="/cliente/{{ cliente.nombre|urlencode }}">
+                                            <i class="bi bi-eye"></i> Ver detalles
+                                        </a></li>
+                                        <li><a class="dropdown-item" href="/cliente/{{ cliente.nombre|urlencode }}/editar">
+                                            <i class="bi bi-pencil"></i> Editar nombre
+                                        </a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item" href="/equipos?search={{ cliente.nombre|urlencode }}">
+                                            <i class="bi bi-truck"></i> Ver equipos
+                                        </a></li>
+                                        <li><a class="dropdown-item" href="/trabajos?search={{ cliente.nombre|urlencode }}">
+                                            <i class="bi bi-wrench"></i> Ver trabajos
+                                        </a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Vista desktop: Tabla -->
+            <div class="d-none d-md-block">
+                <div class="card">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Cliente</th>
+                                        <th class="text-center">Equipos</th>
+                                        <th class="text-center">Trabajos</th>
+                                        <th class="text-end">Total Invertido</th>
+                                        <th class="text-center">Último Trabajo</th>
+                                        <th class="text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for cliente in clientes %}
+                                    <tr class="cliente-row-clickable" data-href="/cliente/{{ cliente.nombre|urlencode }}" style="cursor: pointer;">
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <i class="bi bi-person-circle me-2 text-primary fs-5"></i>
+                                                <div>
+                                                    <strong>{{ cliente.nombre }}</strong>
+                                                    {% if cliente.nombre == 'Sin especificar' %}
+                                                    <small class="text-muted d-block">Equipos sin propietario asignado</small>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-primary">
+                                                <i class="bi bi-truck me-1"></i>{{ cliente.total_equipos }}
+                                            </span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-secondary">
+                                                <i class="bi bi-wrench me-1"></i>{{ cliente.total_trabajos }}
+                                            </span>
+                                        </td>
+                                        <td class="text-end">
+                                            <strong class="text-success">
+                                                <i class="bi bi-currency-dollar"></i>${{ "{:,.0f}".format(cliente.total_gastado) }}
+                                            </strong>
+                                        </td>
+                                        <td class="text-center">
+                                            {% if cliente.ultimo_trabajo %}
+                                                <span class="badge bg-info">{{ cliente.ultimo_trabajo.strftime('%d/%m/%Y') }}</span>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="btn-group" role="group">
+                                                <a href="/cliente/{{ cliente.nombre|urlencode }}" class="btn btn-sm btn-outline-primary" 
+                                                   title="Ver detalles" onclick="event.stopPropagation();">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                                <a href="/cliente/{{ cliente.nombre|urlencode }}/editar" class="btn btn-sm btn-outline-secondary" 
+                                                   title="Editar" onclick="event.stopPropagation();">
+                                                    <i class="bi bi-pencil"></i>
+                                                </a>
+                                                <a href="/equipos?search={{ cliente.nombre|urlencode }}" class="btn btn-sm btn-outline-info" 
+                                                   title="Ver equipos" onclick="event.stopPropagation();">
+                                                    <i class="bi bi-truck"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-people fs-1 text-muted"></i>
+                    <h4 class="text-muted mt-3">
+                        {% if search %}
+                            No se encontraron clientes
+                        {% else %}
+                            No hay clientes registrados
+                        {% endif %}
+                    </h4>
+                    <p class="text-muted">
+                        {% if search %}
+                            Intenta con otros términos de búsqueda
+                        {% else %}
+                            Los clientes se crean automáticamente al registrar equipos con propietario
+                        {% endif %}
+                    </p>
+                    {% if search %}
+                    <a href="/clientes" class="btn btn-primary">Ver todos los clientes</a>
+                    {% else %}
+                    <a href="/equipo/nuevo" class="btn btn-primary">Registrar primer equipo</a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Tarjetas móviles clickeables */
+    .cliente-card-mobile {
+        transition: all 0.3s ease;
+        border: 1px solid var(--border-color);
+    }
+    
+    .cliente-card-mobile:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        border-color: var(--primary-color);
+    }
+    
+    .cliente-card-mobile .card-arrow {
+        opacity: 0.5;
+        transition: all 0.3s ease;
+    }
+    
+    .cliente-card-mobile:hover .card-arrow {
+        opacity: 1;
+        transform: translateX(3px);
+    }
+    
+    /* Filas de tabla clickeables */
+    .cliente-row-clickable {
+        transition: background-color 0.2s ease;
+    }
+    
+    .cliente-row-clickable:hover {
+        background-color: rgba(var(--bs-primary-rgb), 0.05) !important;
+    }
+    
+    /* Mejoras visuales */
+    .badge {
+        font-size: 0.85em;
+    }
+    
+    .card-title {
+        color: var(--text-color);
+    }
+    
+    /* Animaciones para iconos */
+    .cliente-row-clickable i,
+    .cliente-card-mobile i {
+        transition: all 0.2s ease;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .cliente-card-mobile:hover {
+            transform: translateY(-1px);
+        }
+        
+        /* En móvil, asegurar que los dropdowns tengan z-index aún más alto */
+        .cliente-card-mobile .dropdown-menu {
+            z-index: 1070 !important;
+        }
+    }
+    
+    /* Animación de entrada */
+    .animate-slide {
+        animation: slideIn 0.4s ease-out;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Manejar clicks en tarjetas móviles
+        const mobileCards = document.querySelectorAll('.cliente-card-mobile[data-href]');
+        mobileCards.forEach(card => {
+            card.addEventListener('click', function(e) {
+                // Solo navegar si no se hizo click en un botón o dropdown
+                if (!e.target.closest('button, .dropdown-menu, a')) {
+                    window.location.href = this.dataset.href;
+                }
+            });
+        });
+        
+        // Manejar clicks en filas de tabla
+        const tableRows = document.querySelectorAll('.cliente-row-clickable[data-href]');
+        tableRows.forEach(row => {
+            row.addEventListener('click', function(e) {
+                // Solo navegar si no se hizo click en un botón o dropdown
+                if (!e.target.closest('button, .dropdown-menu, a')) {
+                    window.location.href = this.dataset.href;
+                }
+            });
+        });
+        
+        // Función para mostrar indicador de carga
+        function addLoadingIndicator() {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'position-fixed top-50 start-50 translate-middle';
+            loadingDiv.style.zIndex = '9999';
+            loadingDiv.innerHTML = `
+                <div class="bg-white p-3 rounded shadow">
+                    <div class="d-flex align-items-center">
+                        <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                        <span>Cargando...</span>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(loadingDiv);
+        }
+        
+        // Agregar loading a los clicks de navegación
+        document.addEventListener('click', function(e) {
+            const clickableElement = e.target.closest('.cliente-card-mobile[data-href], .cliente-row-clickable[data-href]');
+            if (clickableElement && !e.target.closest('button, .dropdown-menu, a')) {
+                setTimeout(addLoadingIndicator, 100);
+            }
+        });
+    });
+</script>
+{% endblock %}

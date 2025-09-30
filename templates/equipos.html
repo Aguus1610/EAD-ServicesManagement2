@@ -1,0 +1,436 @@
+{% extends "base.html" %}
+
+{% block title %}Equipos - EAD Oleohidráulica{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mt-2">
+    <div class="container-fluid">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/"><i class="bi bi-house"></i> Inicio</a></li>
+            <li class="breadcrumb-item active" aria-current="page"><i class="bi bi-truck"></i> Equipos</li>
+        </ol>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="animate-slide">
+    <!-- Widget compacto de información -->
+    <div class="compact-info-widget">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="info-item">
+                <i class="bi bi-clock"></i>
+                <span id="compact-time">--:--:--</span>
+            </div>
+            <div class="info-item">
+                <i class="bi bi-calendar3"></i>
+                <span id="compact-date">--/--/----</span>
+            </div>
+            <div class="info-item">
+                <i class="bi bi-currency-dollar"></i>
+                <span>USD: <span id="compact-dolar">$---.--</span></span>
+                <span id="compact-dolar-status" class="badge bg-secondary">
+                    <i class="bi bi-hourglass-split"></i>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header con búsqueda -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2><i class="bi bi-truck" style="color: var(--ead-blue);"></i> Equipos</h2>
+                <a href="/equipo/nuevo" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Nuevo
+                </a>
+            </div>
+            
+            <!-- Barra de búsqueda -->
+            <form method="get" action="/equipos" class="mb-3">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" name="search" 
+                           placeholder="Buscar por marca, modelo, serie, propietario o dominio..." 
+                           value="{{ search }}">
+                    <button class="btn btn-outline-secondary" type="submit">Buscar</button>
+                    {% if search %}
+                    <a href="/equipos" class="btn btn-outline-danger">Limpiar</a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Lista de equipos -->
+    <div class="row">
+        <div class="col-12">
+            {% if equipos %}
+            <!-- Vista móvil: Cards clickeables -->
+            <div class="d-md-none">
+                {% for equipo in equipos %}
+                <div class="card mb-3 equipment-card-mobile" data-href="/equipo/{{ equipo.id }}" style="cursor: pointer;">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="card-title mb-1">
+                                    <i class="bi bi-truck me-2 text-primary"></i>
+                                    {{ equipo.marca }} {{ equipo.modelo }} ({{ equipo.anio }})
+                                </h6>
+                                <p class="text-muted mb-2">
+                                    <small>
+                                        <i class="bi bi-upc"></i> {{ equipo.n_serie }}<br>
+                                        {% if equipo.propietario != '-' %}
+                                        <i class="bi bi-person"></i> {{ equipo.propietario }}<br>
+                                        {% endif %}
+                                        {% if equipo.dominio != '-' %}
+                                        <i class="bi bi-card-text"></i> {{ equipo.dominio }}<br>
+                                        {% endif %}
+                                        <i class="bi bi-wrench"></i> {{ equipo.job_count }} trabajos | 
+                                        <i class="bi bi-currency-dollar"></i> ${{ "{:,.0f}".format(equipo.total_spent) }}
+                                    </small>
+                                </p>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <div class="me-2">
+                                    <i class="bi bi-arrow-right-circle text-primary card-arrow"></i>
+                                </div>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-secondary" type="button" 
+                                            data-bs-toggle="dropdown" 
+                                            aria-expanded="false"
+                                            onclick="event.stopPropagation();"
+                                            id="dropdownMenuButton{{ equipo.id }}">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton{{ equipo.id }}">
+                                        <li><a class="dropdown-item" href="/equipo/{{ equipo.id }}">
+                                            <i class="bi bi-eye"></i> Ver detalles
+                                        </a></li>
+                                        <li><a class="dropdown-item" href="/equipo/{{ equipo.id }}/editar">
+                                            <i class="bi bi-pencil"></i> Editar
+                                        </a></li>
+                                        <li><a class="dropdown-item" href="/trabajo/nuevo/{{ equipo.id }}">
+                                            <i class="bi bi-plus"></i> Nuevo trabajo
+                                        </a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <form method="post" action="/equipo/{{ equipo.id }}/eliminar" 
+                                                  onsubmit="return confirm('¿Eliminar este equipo y todos sus trabajos?')">
+                                                <button type="submit" class="dropdown-item text-danger">
+                                                    <i class="bi bi-trash"></i> Eliminar
+                                                </button>
+                                            </form>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Vista desktop: Tabla -->
+            <div class="d-none d-md-block">
+                <div class="card">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Marca</th>
+                                        <th>Modelo</th>
+                                        <th>Año</th>
+                                        <th>N° Serie</th>
+                                        <th>Propietario</th>
+                                        <th>Dominio</th>
+                                        <th class="text-center">Trabajos</th>
+                                        <th class="text-end">Total</th>
+                                        <th class="text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for equipo in equipos %}
+                                    <tr class="equipment-row-clickable" data-href="/equipo/{{ equipo.id }}" style="cursor: pointer;">
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <i class="bi bi-truck me-2 text-primary"></i>
+                                                <strong>{{ equipo.marca }}</strong>
+                                            </div>
+                                        </td>
+                                        <td>{{ equipo.modelo }}</td>
+                                        <td>
+                                            <span class="badge bg-light text-dark">{{ equipo.anio }}</span>
+                                        </td>
+                                        <td>
+                                            <code class="text-muted">{{ equipo.n_serie }}</code>
+                                        </td>
+                                        <td>
+                                            {% if equipo.propietario != '-' %}
+                                                <i class="bi bi-person me-1"></i>{{ equipo.propietario }}
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if equipo.dominio != '-' %}
+                                                <span class="badge bg-info">{{ equipo.dominio }}</span>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-secondary">
+                                                <i class="bi bi-wrench me-1"></i>{{ equipo.job_count }}
+                                            </span>
+                                        </td>
+                                        <td class="text-end">
+                                            <strong class="text-success">
+                                                <i class="bi bi-currency-dollar"></i>${{ "{:,.0f}".format(equipo.total_spent) }}
+                                            </strong>
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="btn-group" role="group">
+                                                <a href="/equipo/{{ equipo.id }}" class="btn btn-sm btn-outline-primary" 
+                                                   title="Ver detalles" onclick="event.stopPropagation();">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                                <a href="/equipo/{{ equipo.id }}/editar" class="btn btn-sm btn-outline-secondary" 
+                                                   title="Editar" onclick="event.stopPropagation();">
+                                                    <i class="bi bi-pencil"></i>
+                                                </a>
+                                                <a href="/trabajo/nuevo/{{ equipo.id }}" class="btn btn-sm btn-outline-success" 
+                                                   title="Nuevo trabajo" onclick="event.stopPropagation();">
+                                                    <i class="bi bi-plus"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-inbox fs-1 text-muted"></i>
+                    <p class="mt-3 text-muted">
+                        {% if search %}
+                        No se encontraron equipos con ese criterio de búsqueda
+                        {% else %}
+                        No hay equipos registrados
+                        {% endif %}
+                    </p>
+                    <a href="/equipo/nuevo" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Agregar primer equipo
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Tarjetas móviles clickeables */
+    .equipment-card-mobile {
+        transition: all 0.3s ease;
+        border: 1px solid var(--border-color);
+    }
+    
+    .equipment-card-mobile:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        border-color: var(--primary-color);
+    }
+    
+    .equipment-card-mobile .card-arrow {
+        opacity: 0.5;
+        transition: all 0.3s ease;
+    }
+    
+    .equipment-card-mobile:hover .card-arrow {
+        opacity: 1;
+        transform: translateX(3px);
+    }
+    
+    /* Filas de tabla clickeables */
+    .equipment-row-clickable {
+        transition: all 0.2s ease;
+    }
+    
+    .equipment-row-clickable:hover {
+        background-color: rgba(var(--bs-primary-rgb), 0.08) !important;
+        transform: scale(1.01);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .equipment-row-clickable:hover td:first-child i {
+        color: var(--primary-color) !important;
+        transform: scale(1.1);
+    }
+    
+    .equipment-row-clickable:hover strong {
+        color: var(--primary-color);
+    }
+    
+    /* Efectos de hover para badges */
+    .equipment-row-clickable:hover .badge {
+        transform: scale(1.05);
+    }
+    
+    /* Animaciones para iconos */
+    .equipment-row-clickable i,
+    .equipment-card-mobile i {
+        transition: all 0.2s ease;
+    }
+    
+    /* Fix para dropdowns - z-index alto para que aparezcan por encima */
+    .dropdown {
+        position: relative;
+        z-index: 1000;
+    }
+    
+    .dropdown-menu {
+        z-index: 1050 !important;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Asegurar que los dropdowns en cards tengan prioridad */
+    .card .dropdown-menu {
+        z-index: 1060 !important;
+    }
+    
+    /* Asegurar que los dropdowns en tablas tengan prioridad */
+    .table .dropdown-menu {
+        z-index: 1055 !important;
+    }
+    
+    /* Mejorar visibilidad del dropdown toggle */
+    .dropdown-toggle::after {
+        display: none; /* Ocultar flecha por defecto */
+    }
+    
+    .dropdown button:focus {
+        box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .equipment-card-mobile:hover {
+            transform: translateY(-1px);
+        }
+        
+        /* En móvil, asegurar que los dropdowns tengan z-index aún más alto */
+        .equipment-card-mobile .dropdown-menu {
+            z-index: 1070 !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Funciones para widget compacto
+    async function updateCompactWidget() {
+        try {
+            // Actualizar tiempo
+            const timeResponse = await fetch('/api/tiempo');
+            const timeData = await timeResponse.json();
+            
+            if (timeData.success) {
+                document.getElementById('compact-time').textContent = timeData.hora;
+                document.getElementById('compact-date').textContent = timeData.fecha_corta;
+            }
+            
+            // Actualizar dólar
+            const dolarResponse = await fetch('/api/dolar');
+            const dolarData = await dolarResponse.json();
+            
+            const dolarElement = document.getElementById('compact-dolar');
+            const statusElement = document.getElementById('compact-dolar-status');
+            
+            if (dolarData.success && dolarData.precio_venta > 0) {
+                dolarElement.textContent = `$${dolarData.precio_venta.toFixed(2)}`;
+                statusElement.innerHTML = '<i class="bi bi-check-circle"></i>';
+                statusElement.className = 'badge bg-success';
+            } else {
+                dolarElement.textContent = 'N/D';
+                statusElement.innerHTML = '<i class="bi bi-exclamation-triangle"></i>';
+                statusElement.className = 'badge bg-warning';
+            }
+        } catch (error) {
+            console.warn('Error actualizando widget compacto:', error);
+        }
+    }
+    
+    // Inicializar widget compacto
+    updateCompactWidget();
+    setInterval(updateCompactWidget, 60000); // Cada minuto
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Manejar clicks en tarjetas móviles
+        const mobileCards = document.querySelectorAll('.equipment-card-mobile[data-href]');
+        mobileCards.forEach(card => {
+            card.addEventListener('click', function(e) {
+                // Solo navegar si no se hizo click en un botón o dropdown
+                if (!e.target.closest('button, .dropdown-menu, a')) {
+                    window.location.href = this.dataset.href;
+                }
+            });
+        });
+        
+        // Manejar clicks en filas de tabla
+        const tableRows = document.querySelectorAll('.equipment-row-clickable[data-href]');
+        tableRows.forEach(row => {
+            row.addEventListener('click', function(e) {
+                // Solo navegar si no se hizo click en un botón
+                if (!e.target.closest('a, button')) {
+                    window.location.href = this.dataset.href;
+                }
+            });
+            
+            // Agregar tooltip visual
+            row.title = 'Haz click para ver detalles del equipo';
+        });
+        
+        // Mejorar feedback visual
+        const searchInput = document.querySelector('input[name="search"]');
+        if (searchInput) {
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    showNotification('Buscando...', 'info');
+                }
+            });
+        }
+        
+        // Agregar indicador visual de carga para navegación
+        function addLoadingIndicator() {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.innerHTML = `
+                <div class="d-flex justify-content-center align-items-center" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); z-index: 9999;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(loadingDiv);
+        }
+        
+        // Agregar loading a los clicks de navegación
+        document.addEventListener('click', function(e) {
+            const clickableElement = e.target.closest('.equipment-card-mobile[data-href], .equipment-row-clickable[data-href]');
+            if (clickableElement && !e.target.closest('button, .dropdown-menu, a')) {
+                setTimeout(addLoadingIndicator, 100);
+            }
+        });
+    });
+</script>
+{% endblock %}

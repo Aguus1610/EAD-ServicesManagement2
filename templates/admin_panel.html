@@ -1,0 +1,563 @@
+{% extends "base.html" %}
+
+{% block title %}Panel de Administración - EAD Oleohidráulica{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mt-2">
+    <div class="container-fluid">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/"><i class="bi bi-house"></i> Inicio</a></li>
+            <li class="breadcrumb-item active" aria-current="page"><i class="bi bi-gear-fill"></i> Administración</li>
+        </ol>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="animate-slide">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>
+                    <i class="bi bi-gear-fill" style="color: var(--ead-red);"></i> 
+                    Panel de Administración
+                </h2>
+                <div class="d-flex gap-2">
+                    <a href="/" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Volver al Inicio
+                    </a>
+                </div>
+            </div>
+            <p class="text-muted">Gestión de datos, importación y configuración del sistema</p>
+        </div>
+    </div>
+
+    <!-- Estadísticas actuales -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card text-center border-primary">
+                <div class="card-body">
+                    <i class="bi bi-truck fs-2 text-primary mb-2"></i>
+                    <h4 class="mb-0">{{ total_equipment }}</h4>
+                    <small class="text-muted">Equipos Registrados</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center border-success">
+                <div class="card-body">
+                    <i class="bi bi-wrench fs-2 text-success mb-2"></i>
+                    <h4 class="mb-0">{{ total_jobs }}</h4>
+                    <small class="text-muted">Trabajos Registrados</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center border-info">
+                <div class="card-body">
+                    <i class="bi bi-file-earmark-excel fs-2 text-info mb-2"></i>
+                    <h4 class="mb-0">{{ excel_files|length }}</h4>
+                    <small class="text-muted">Archivos Excel</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center border-warning">
+                <div class="card-body">
+                    <i class="bi bi-database fs-2 text-warning mb-2"></i>
+                    <h4 class="mb-0">SQLite</h4>
+                    <small class="text-muted">Base de Datos</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Secciones principales -->
+    <div class="row">
+        <!-- Importación de datos -->
+        <div class="col-12 col-lg-8 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-upload"></i> Importación de Datos Excel
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Subir nuevo archivo -->
+                    <div class="mb-4">
+                        <h6 class="text-primary">
+                            <i class="bi bi-cloud-upload"></i> Subir Nuevo Archivo
+                        </h6>
+                        <form method="post" action="/admin/upload-excel" enctype="multipart/form-data" class="mb-3">
+                            <div class="input-group">
+                                <input type="file" class="form-control" name="excel_file" accept=".xlsx,.xls" required>
+                                <button class="btn btn-primary" type="submit">
+                                    <i class="bi bi-upload"></i> Subir
+                                </button>
+                            </div>
+                            <small class="form-text text-muted">
+                                Formatos soportados: .xlsx, .xls. Cada hoja = un cliente/propietario.
+                            </small>
+                        </form>
+                    </div>
+
+                    <!-- Archivos Excel disponibles -->
+                    <div class="mb-4">
+                        <h6 class="text-primary">
+                            <i class="bi bi-files"></i> Archivos Disponibles
+                        </h6>
+                        {% if excel_files %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Archivo</th>
+                                        <th>Tamaño</th>
+                                        <th>Modificado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for file in excel_files %}
+                                    <tr>
+                                        <td>
+                                            <i class="bi bi-file-earmark-excel text-success me-2"></i>
+                                            <strong>{{ file.name }}</strong>
+                                        </td>
+                                        <td>{{ "%.1f"|format(file.size / 1024) }} KB</td>
+                                        <td>{{ file.modified.strftime('%d/%m/%Y %H:%M') }}</td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-info" onclick="validateExcel('{{ file.name }}')">
+                                                    <i class="bi bi-check-circle"></i> Validar
+                                                </button>
+                                                <button class="btn btn-success" onclick="importExcel('{{ file.name }}')">
+                                                    <i class="bi bi-download"></i> Importar
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i>
+                            No hay archivos Excel en el directorio. Sube un archivo para comenzar.
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Información sobre formato -->
+                    <div class="alert alert-light border">
+                        <h6 class="alert-heading">
+                            <i class="bi bi-info-circle text-primary"></i> Formato Esperado del Excel
+                        </h6>
+                        <ul class="mb-0">
+                            <li><strong>Cada hoja</strong> representa un cliente/propietario</li>
+                            <li><strong>Columnas requeridas:</strong> EQUIPO, FECHA, REPUESTOS, MANO DE OBRA</li>
+                            <li><strong>EQUIPO:</strong> Nombre del equipo/máquina</li>
+                            <li><strong>FECHA:</strong> Fecha del trabajo (DD/MM/YYYY)</li>
+                            <li><strong>REPUESTOS:</strong> Descripción de repuestos utilizados</li>
+                            <li><strong>MANO DE OBRA:</strong> Descripción del trabajo realizado</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gestión de base de datos -->
+        <div class="col-12 col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="bi bi-database-gear"></i> Gestión de Base de Datos
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Backup -->
+                    <div class="mb-4">
+                        <h6 class="text-warning">
+                            <i class="bi bi-shield-check"></i> Respaldo de Seguridad
+                        </h6>
+                        <p class="small text-muted">Descarga una copia de seguridad de todos los datos</p>
+                        <a href="/api/backup" class="btn btn-outline-info btn-sm w-100">
+                            <i class="bi bi-download"></i> Descargar Backup
+                        </a>
+                    </div>
+
+                    <!-- Limpiar datos -->
+                    <div class="mb-4">
+                        <h6 class="text-danger">
+                            <i class="bi bi-exclamation-triangle"></i> Limpiar Datos
+                        </h6>
+                        <p class="small text-muted">
+                            <strong>¡ATENCIÓN!</strong> Esta acción eliminará TODOS los equipos y trabajos de la base de datos.
+                        </p>
+                        <button class="btn btn-outline-danger btn-sm w-100" data-bs-toggle="modal" data-bs-target="#clearDataModal">
+                            <i class="bi bi-trash"></i> Limpiar Base de Datos
+                        </button>
+                    </div>
+
+                    <!-- Estadísticas de almacenamiento -->
+                    <div class="alert alert-light">
+                        <h6 class="alert-heading">Información del Sistema</h6>
+                        <small>
+                            <i class="bi bi-hdd"></i> Base de datos: SQLite<br>
+                            <i class="bi bi-gear"></i> Versión: EAD v1.1.0<br>
+                            <i class="bi bi-calendar3"></i> Última actualización: Hoy
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Log de actividades recientes -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="bi bi-clock-history"></i> Actividades Recientes
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="activityLog" class="small">
+                        <div class="text-muted">
+                            <i class="bi bi-info-circle"></i> 
+                            Las actividades de importación y gestión aparecerán aquí...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmación para limpiar datos -->
+<div class="modal fade" id="clearDataModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle"></i> Confirmar Limpieza de Datos
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <strong>¡ADVERTENCIA!</strong> Esta acción es irreversible.
+                </div>
+                <p>Se eliminarán <strong>TODOS</strong> los datos:</p>
+                <ul>
+                    <li>{{ total_equipment }} equipos registrados</li>
+                    <li>{{ total_jobs }} trabajos registrados</li>
+                    <li>Todas las relaciones y historiales</li>
+                </ul>
+                <p><strong>Recomendación:</strong> Descarga un backup antes de proceder.</p>
+                
+                <form method="post" action="/admin/clear-data" id="clearDataForm">
+                    <div class="mb-3">
+                        <label for="confirmation" class="form-label">
+                            Para confirmar, escriba <code>CONFIRMAR</code> en mayúsculas:
+                        </label>
+                        <input type="text" class="form-control" name="confirmation" id="confirmation" 
+                               placeholder="CONFIRMAR" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" onclick="confirmClearData()">
+                    <i class="bi bi-trash"></i> Limpiar Datos
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de validación de Excel -->
+<div class="modal fade" id="validationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-check-circle"></i> Validación de Archivo Excel
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="validationResults">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Validando...</span>
+                        </div>
+                        <p class="mt-2">Validando archivo...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .card {
+        transition: all 0.3s ease;
+    }
+    
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .btn-group-sm .btn {
+        font-size: 0.75rem;
+    }
+    
+    .alert-light {
+        background-color: rgba(var(--bs-light-rgb), 0.5);
+    }
+    
+    #activityLog {
+        max-height: 200px;
+        overflow-y: auto;
+    }
+    
+    .animate-slide {
+        animation: slideIn 0.4s ease-out;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Función para validar archivo Excel
+    function validateExcel(filename) {
+        const modal = new bootstrap.Modal(document.getElementById('validationModal'));
+        modal.show();
+        
+        fetch(`/admin/validate-excel/${filename}`)
+            .then(response => response.json())
+            .then(data => {
+                displayValidationResults(data);
+            })
+            .catch(error => {
+                document.getElementById('validationResults').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle"></i> Error validando archivo: ${error.message}
+                    </div>
+                `;
+            });
+    }
+    
+    function displayValidationResults(data) {
+        let html = '';
+        
+        // Resumen general
+        if (data.valid) {
+            html += `
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle"></i> 
+                    <strong>Archivo válido para importación</strong>
+                    <br><small>
+                        ${data.summary.valid_sheets}/${data.summary.total_sheets} hojas válidas • 
+                        ~${data.summary.estimated_records} registros estimados
+                    </small>
+                </div>
+            `;
+        } else {
+            html += `
+                <div class="alert alert-danger">
+                    <i class="bi bi-x-circle"></i> 
+                    <strong>Archivo con problemas</strong>
+                    <br><small>
+                        ${data.summary.valid_sheets}/${data.summary.total_sheets} hojas válidas • 
+                        ${data.summary.estimated_records} registros estimados
+                    </small>
+                </div>
+            `;
+        }
+        
+        // Mostrar hojas encontradas con información detallada
+        if (data.sheets && data.sheets.length > 0) {
+            html += '<h6 class="mt-3">Análisis por Hoja:</h6>';
+            
+            data.sheets.forEach(sheet => {
+                const status = sheet.valid ? 'success' : (sheet.confidence > 30 ? 'warning' : 'danger');
+                const icon = sheet.valid ? 'check-circle' : (sheet.confidence > 30 ? 'exclamation-triangle' : 'x-circle');
+                
+                html += `
+                    <div class="card mb-2">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">
+                                        <i class="bi bi-${icon} text-${status}"></i>
+                                        <strong>${sheet.name}</strong>
+                                        <span class="badge bg-${status} ms-2">${sheet.confidence}% confianza</span>
+                                    </h6>
+                                    
+                                    ${sheet.estimated_records ? 
+                                        `<small class="text-success"><i class="bi bi-database"></i> ~${sheet.estimated_records} registros válidos</small><br>` : 
+                                        ''
+                                    }
+                                    
+                                    ${sheet.column_mapping && Object.keys(sheet.column_mapping).length > 0 ? `
+                                        <small class="text-muted">
+                                            <i class="bi bi-arrow-right"></i> Mapeo: 
+                                            ${Object.entries(sheet.column_mapping).map(([key, val]) => 
+                                                `<span class="badge bg-light text-dark">${key} → ${val}</span>`
+                                            ).join(' ')}
+                                        </small>
+                                    ` : ''}
+                                    
+                                    ${sheet.issues && sheet.issues.length > 0 ? `
+                                        <div class="mt-2">
+                                            ${sheet.issues.map(issue => 
+                                                `<small class="text-warning d-block"><i class="bi bi-exclamation-triangle"></i> ${issue}</small>`
+                                            ).join('')}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                            
+                            ${sheet.data_area_shape ? `
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        Área original: ${sheet.original_shape[0]}×${sheet.original_shape[1]} → 
+                                        Datos detectados: ${sheet.data_area_shape[0]}×${sheet.data_area_shape[1]}
+                                    </small>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        
+        // Mostrar errores y advertencias
+        if (data.errors && data.errors.length > 0) {
+            html += '<div class="alert alert-danger mt-3"><h6 class="alert-heading">Errores Críticos:</h6><ul class="mb-0">';
+            data.errors.forEach(error => {
+                html += `<li>${error}</li>`;
+            });
+            html += '</ul></div>';
+        }
+        
+        if (data.warnings && data.warnings.length > 0) {
+            html += '<div class="alert alert-warning mt-3"><h6 class="alert-heading">Advertencias:</h6><ul class="mb-0">';
+            data.warnings.forEach(warning => {
+                html += `<li>${warning}</li>`;
+            });
+            html += '</ul></div>';
+        }
+        
+        // Información técnica (colapsable)
+        if (data.sheets && data.sheets.length > 0) {
+            html += `
+                <div class="mt-3">
+                    <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#technicalDetails">
+                        <i class="bi bi-gear"></i> Mostrar Detalles Técnicos
+                    </button>
+                    <div class="collapse mt-2" id="technicalDetails">
+                        <div class="card card-body bg-light">
+                            <h6>Información Técnica:</h6>
+                            ${data.sheets.map(sheet => `
+                                <div class="mb-2">
+                                    <strong>${sheet.name}:</strong><br>
+                                    <small>
+                                        • Columnas originales: ${sheet.original_columns ? sheet.original_columns.join(', ') : 'N/A'}<br>
+                                        • Columnas detectadas: ${sheet.detected_columns ? sheet.detected_columns.join(', ') : 'N/A'}
+                                    </small>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        document.getElementById('validationResults').innerHTML = html;
+    }
+    
+    // Función para importar archivo Excel
+    function importExcel(filename) {
+        if (confirm(`¿Está seguro de que desea importar los datos del archivo "${filename}"?\n\nEsto agregará nuevos equipos y trabajos a la base de datos.`)) {
+            // Mostrar indicador de carga
+            showNotification('Iniciando importación...', 'info');
+            
+            // Crear formulario para enviar POST
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/admin/import-excel/${filename}`;
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+    
+    // Función para confirmar limpieza de datos
+    function confirmClearData() {
+        const confirmation = document.getElementById('confirmation').value;
+        if (confirmation.trim().toUpperCase() === 'CONFIRMAR') {
+            document.getElementById('clearDataForm').submit();
+        } else {
+            alert('Debe escribir "CONFIRMAR" exactamente para proceder.');
+        }
+    }
+    
+    // Agregar logs de actividad
+    function addActivityLog(message, type = 'info') {
+        const logContainer = document.getElementById('activityLog');
+        const timestamp = new Date().toLocaleTimeString();
+        const iconClass = type === 'success' ? 'check-circle text-success' : 
+                         type === 'error' ? 'x-circle text-danger' : 
+                         'info-circle text-info';
+        
+        const logEntry = document.createElement('div');
+        logEntry.className = 'mb-1';
+        logEntry.innerHTML = `
+            <i class="bi bi-${iconClass}"></i>
+            <span class="text-muted">[${timestamp}]</span> ${message}
+        `;
+        
+        logContainer.insertBefore(logEntry, logContainer.firstChild);
+        
+        // Mantener solo los últimos 10 logs
+        while (logContainer.children.length > 10) {
+            logContainer.removeChild(logContainer.lastChild);
+        }
+    }
+    
+    // Inicialización
+    document.addEventListener('DOMContentLoaded', function() {
+        addActivityLog('Panel de administración cargado', 'success');
+        
+        // Mejorar UX de upload de archivos
+        const fileInput = document.querySelector('input[type="file"]');
+        if (fileInput) {
+            fileInput.addEventListener('change', function() {
+                if (this.files.length > 0) {
+                    const fileName = this.files[0].name;
+                    addActivityLog(`Archivo seleccionado: ${fileName}`, 'info');
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}
