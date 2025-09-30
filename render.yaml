@@ -26,6 +26,8 @@ services:
         generateValue: true
       - key: DATABASE_PATH
         value: /opt/render/project/src/equipos.db
+      - key: DATABASE_URL
+        value: sqlite:///opt/render/project/src/equipos.db
       - key: UPLOAD_FOLDER
         value: /tmp/uploads
       - key: CACHE_TYPE
