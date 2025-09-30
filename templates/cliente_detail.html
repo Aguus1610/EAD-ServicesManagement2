@@ -16,66 +16,62 @@
 
 {% block content %}
 <div class="animate-slide">
-    <!-- Header del cliente -->
+    <!-- Tarjeta de información del cliente -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card bg-gradient-primary text-white shadow-lg">
+            <div class="card">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="flex-grow-1">
-                            <div class="d-flex align-items-center mb-2">
-                                <i class="bi bi-person-circle me-3 fs-1"></i>
-                                <div>
-                                    <h2 class="mb-1">{{ cliente.nombre }}</h2>
-                                    <div class="d-flex align-items-center gap-3 opacity-90">
-                                        <span class="badge bg-light text-dark">{{ cliente.tipo_cliente }}</span>
-                                        {% if cliente.activo %}
-                                        <span class="badge bg-success">Activo</span>
-                                        {% else %}
-                                        <span class="badge bg-danger">Inactivo</span>
-                                        {% endif %}
-                                        <small>Registrado: {{ cliente.fecha_registro.strftime('%d/%m/%Y') }}</small>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Información de contacto -->
-                            <div class="row g-3 mt-2">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap">
+                        <div>
+                            <h3 class="mb-2">
+                                <i class="bi bi-person-circle"></i> {{ cliente.nombre }}
+                            </h3>
+                            <div class="text-muted">
+                                <p class="mb-1">
+                                    <i class="bi bi-tag"></i> <strong>Tipo:</strong> {{ cliente.tipo_cliente }}
+                                    {% if cliente.activo %}
+                                    <span class="badge bg-success ms-2">Activo</span>
+                                    {% else %}
+                                    <span class="badge bg-danger ms-2">Inactivo</span>
+                                    {% endif %}
+                                </p>
+                                <p class="mb-1"><i class="bi bi-calendar"></i> <strong>Registrado:</strong> {{ cliente.fecha_registro.strftime('%d/%m/%Y') }}</p>
                                 {% if cliente.telefono %}
-                                <div class="col-auto">
-                                    <div class="d-flex align-items-center">
-                                        <i class="bi bi-telephone me-2"></i>
-                                        <span>{{ cliente.telefono }}</span>
-                                    </div>
-                                </div>
+                                <p class="mb-1"><i class="bi bi-telephone"></i> <strong>Teléfono:</strong> {{ cliente.telefono }}</p>
                                 {% endif %}
                                 {% if cliente.email %}
-                                <div class="col-auto">
-                                    <div class="d-flex align-items-center">
-                                        <i class="bi bi-envelope me-2"></i>
-                                        <span>{{ cliente.email }}</span>
-                                    </div>
-                                </div>
+                                <p class="mb-1"><i class="bi bi-envelope"></i> <strong>Email:</strong> {{ cliente.email }}</p>
                                 {% endif %}
-                                {% if cliente.ciudad %}
-                                <div class="col-auto">
-                                    <div class="d-flex align-items-center">
-                                        <i class="bi bi-geo-alt me-2"></i>
-                                        <span>{{ cliente.ciudad }}</span>
-                                    </div>
-                                </div>
+                                {% if cliente.direccion %}
+                                <p class="mb-1"><i class="bi bi-geo-alt"></i> <strong>Dirección:</strong> {{ cliente.direccion }}{% if cliente.ciudad %}, {{ cliente.ciudad }}{% endif %}{% if cliente.codigo_postal %} ({{ cliente.codigo_postal }}){% endif %}</p>
+                                {% endif %}
+                                {% if cliente.cuit_dni %}
+                                <p class="mb-1"><i class="bi bi-card-text"></i> <strong>CUIT/DNI:</strong> {{ cliente.cuit_dni }}</p>
+                                {% endif %}
+                                {% if cliente.notas %}
+                                <p class="mb-0"><i class="bi bi-chat-text"></i> <strong>Notas:</strong> {{ cliente.notas }}</p>
                                 {% endif %}
                             </div>
                         </div>
-                        <div class="text-end">
-                            <div class="btn-group">
-                                <a href="/cliente/{{ cliente.id }}/editar" class="btn btn-light btn-sm">
-                                    <i class="bi bi-pencil"></i> Editar
-                                </a>
-                                <button class="btn btn-danger btn-sm" onclick="confirmarDesactivacion()">
-                                    <i class="bi bi-trash"></i> Desactivar
-                                </button>
-                            </div>
+                        <div class="mt-3 mt-md-0">
+                            <a href="/cliente/{{ cliente.id }}/editar" class="btn btn-outline-primary">
+                                <i class="bi bi-pencil"></i> Editar
+                            </a>
+                            {% if cliente.activo %}
+                            <button class="btn btn-outline-danger" onclick="confirmarDesactivacion()">
+                                <i class="bi bi-person-x"></i> Desactivar
+                            </button>
+                            {% endif %}
+                            {% if cliente.telefono %}
+                            <button class="btn btn-outline-success" onclick="llamarCliente()">
+                                <i class="bi bi-telephone"></i> Llamar
+                            </button>
+                            {% endif %}
+                            {% if cliente.email %}
+                            <button class="btn btn-outline-info" onclick="emailCliente()">
+                                <i class="bi bi-envelope"></i> Email
+                            </button>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -166,7 +162,9 @@
                     </h5>
                 </div>
                 <div class="card-body">
-                    <canvas id="gastosChart" height="100"></canvas>
+                    <div style="position: relative; height: 300px; width: 100%;">
+                        <canvas id="gastosChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -466,11 +464,20 @@ document.addEventListener('DOMContentLoaded', function() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
             plugins: {
                 legend: {
                     display: false
                 },
                 tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleColor: '#fff',
+                    bodyColor: '#fff',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1,
                     callbacks: {
                         label: function(context) {
                             return 'Gastos: $' + context.parsed.y.toLocaleString();
