@@ -37,6 +37,12 @@ load_dotenv()
 
 # Validar configuración
 try:
+    # En producción, crear DATABASE_URL si no existe pero DATABASE_PATH sí
+    if os.environ.get('FLASK_ENV') == 'production' and not os.environ.get('DATABASE_URL'):
+        database_path = os.environ.get('DATABASE_PATH', '/opt/render/project/src/equipos.db')
+        os.environ['DATABASE_URL'] = f'sqlite:///{database_path}'
+        logger.info(f"DATABASE_URL generada automáticamente: {os.environ['DATABASE_URL']}")
+    
     ConfigValidator.validate_required_env_vars()
     ConfigValidator.validate_database_connection(os.environ.get('DATABASE_URL', 'sqlite:///agenda_taller.db'))
 except ValueError as e:
@@ -45,7 +51,17 @@ except ValueError as e:
     if os.environ.get('FLASK_ENV') != 'production':
         logger.warning("Continuando en modo desarrollo con configuración por defecto")
     else:
-        raise
+        # En producción, intentar configuración por defecto como último recurso
+        if not os.environ.get('DATABASE_URL'):
+            default_db_path = '/opt/render/project/src/equipos.db'
+            os.environ['DATABASE_URL'] = f'sqlite:///{default_db_path}'
+            logger.warning(f"Usando DATABASE_URL por defecto: {os.environ['DATABASE_URL']}")
+        if not os.environ.get('SECRET_KEY'):
+            import secrets
+            os.environ['SECRET_KEY'] = secrets.token_urlsafe(32)
+            logger.warning("SECRET_KEY generada automáticamente")
+        # Intentar continuar
+        logger.warning("Continuando con configuración generada automáticamente")
 
 app = Flask(__name__)
 config_class = get_config()
