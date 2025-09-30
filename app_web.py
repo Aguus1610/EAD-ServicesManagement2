@@ -71,6 +71,20 @@ config_class.init_app(app)
 # Inicializar sistema de caché
 cache = Cache(app)
 
+# Inicializar base de datos automáticamente
+try:
+    init_db()
+    logger.info("Base de datos inicializada correctamente")
+except Exception as e:
+    logger.error(f"Error inicializando base de datos: {e}")
+    # Intentar crear las tablas de forma segura
+    try:
+        db.connect()
+        db.create_tables([Equipment, Job], safe=True)
+        logger.info("Tablas creadas con safe=True")
+    except Exception as e2:
+        logger.error(f"Error crítico con base de datos: {e2}")
+
 # Manejador de errores global
 @app.errorhandler(500)
 def internal_error(error):
