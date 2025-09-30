@@ -494,11 +494,13 @@ class ExcelImporter:
 class DatabaseImporter:
     """Importador de datos a la base de datos"""
     
-    def __init__(self, equipment_model, job_model):
+    def __init__(self, equipment_model, job_model, cliente_model=None):
         self.Equipment = equipment_model
         self.Job = job_model
+        self.Cliente = cliente_model
         self.imported_equipment = []
         self.imported_jobs = []
+        self.imported_clientes = []
         self.errors = []
     
     def import_equipment_data(self, equipment_data_list: List[EquipmentData]) -> Dict:
@@ -524,6 +526,7 @@ class DatabaseImporter:
         return {
             'equipment_imported': len(self.imported_equipment),
             'jobs_imported': len(self.imported_jobs),
+            'clientes_imported': len(self.imported_clientes),
             'errors': self.errors
         }
     
@@ -531,6 +534,11 @@ class DatabaseImporter:
         """Crear o actualizar equipo"""
         # Parsear nombre del equipo para extraer marca, modelo, etc.
         parsed_info = self._parse_equipment_name(equipment_data.nombre)
+        
+        # Crear o buscar cliente si el modelo está disponible
+        cliente = None
+        if self.Cliente and equipment_data.propietario:
+            cliente = self._create_or_get_cliente(equipment_data.propietario)
         
         # Buscar si ya existe por nombre similar
         existing = None
@@ -544,21 +552,65 @@ class DatabaseImporter:
             pass
         
         if existing:
+            # Si existe el equipo pero no tiene cliente asignado, asignarlo
+            if cliente and not existing.cliente:
+                existing.cliente = cliente
+                existing.save()
+                logger.info(f"Cliente asignado a equipo existente: {existing.marca} {existing.modelo}")
             logger.info(f"Equipo existente encontrado: {existing.marca} {existing.modelo}")
             return existing
         
         # Crear nuevo equipo
-        equipment = self.Equipment.create(
-            marca=parsed_info['marca'],
-            modelo=parsed_info['modelo'],
-            anio=parsed_info['anio'],
-            n_serie=parsed_info['n_serie'],
-            propietario=equipment_data.propietario,
-            notes=f"Importado desde Excel - Nombre original: {equipment_data.nombre}"
-        )
+        equipment_data_dict = {
+            'marca': parsed_info['marca'],
+            'modelo': parsed_info['modelo'],
+            'anio': parsed_info['anio'],
+            'n_serie': parsed_info['n_serie'],
+            'propietario': equipment_data.propietario,
+            'notes': f"Importado desde Excel - Nombre original: {equipment_data.nombre}"
+        }
+        
+        # Agregar cliente si está disponible
+        if cliente:
+            equipment_data_dict['cliente'] = cliente
+        
+        equipment = self.Equipment.create(**equipment_data_dict)
         
         logger.info(f"Nuevo equipo creado: {equipment.marca} {equipment.modelo}")
         return equipment
+    
+    def _create_or_get_cliente(self, propietario_nombre: str):
+        """Crear o obtener cliente basado en el nombre del propietario"""
+        if not self.Cliente or not propietario_nombre:
+            return None
+        
+        propietario_nombre = propietario_nombre.strip()
+        
+        try:
+            # Buscar cliente existente
+            cliente = self.Cliente.select().where(self.Cliente.nombre == propietario_nombre).first()
+            
+            if cliente:
+                logger.info(f"Cliente existente encontrado: {propietario_nombre}")
+                return cliente
+            
+            # Crear nuevo cliente
+            from datetime import datetime
+            cliente = self.Cliente.create(
+                nombre=propietario_nombre,
+                tipo_cliente='Particular',  # Por defecto
+                fecha_registro=datetime.now().date(),
+                activo=True,
+                notas=f"Cliente creado automáticamente durante importación de Excel"
+            )
+            
+            self.imported_clientes.append(cliente)
+            logger.info(f"Nuevo cliente creado: {propietario_nombre}")
+            return cliente
+            
+        except Exception as e:
+            logger.error(f"Error creando cliente '{propietario_nombre}': {e}")
+            return None
     
     def _parse_equipment_name(self, nombre: str) -> Dict:
         """Parsear nombre del equipo para extraer información"""

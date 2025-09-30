@@ -1489,8 +1489,8 @@ def import_excel_data(filename):
             flash('No se encontraron datos válidos en el archivo', 'warning')
             return redirect(url_for('admin_panel'))
         
-        # Importar a base de datos
-        db_importer = DatabaseImporter(Equipment, Job)
+        # Importar a base de datos (incluyendo modelo Cliente para crear automáticamente)
+        db_importer = DatabaseImporter(Equipment, Job, Cliente)
         import_result = db_importer.import_equipment_data(equipment_data_list)
         
         # Limpiar caché después de importar
@@ -1505,12 +1505,19 @@ def import_excel_data(filename):
             logger.error(f"Error limpiando caché completo: {e}")
         
         # Mostrar resultados
+        clientes_creados = import_result.get('clientes_imported', 0)
         if import_result['errors']:
-            flash(f'Importación completada con errores. Equipos: {import_result["equipment_imported"]}, Trabajos: {import_result["jobs_imported"]}', 'warning')
+            mensaje = f'Importación completada con errores. Equipos: {import_result["equipment_imported"]}, Trabajos: {import_result["jobs_imported"]}'
+            if clientes_creados > 0:
+                mensaje += f', Clientes: {clientes_creados}'
+            flash(mensaje, 'warning')
             for error in import_result['errors'][:5]:  # Mostrar solo los primeros 5 errores
                 flash(error, 'error')
         else:
-            flash(f'Importación exitosa: {import_result["equipment_imported"]} equipos y {import_result["jobs_imported"]} trabajos importados', 'success')
+            mensaje = f'Importación exitosa: {import_result["equipment_imported"]} equipos y {import_result["jobs_imported"]} trabajos importados'
+            if clientes_creados > 0:
+                mensaje += f', {clientes_creados} clientes creados automáticamente'
+            flash(mensaje, 'success')
         
         return redirect(url_for('admin_panel'))
     
