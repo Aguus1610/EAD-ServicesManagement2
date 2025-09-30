@@ -1,7 +1,13 @@
 """
 Parser Excel Final - Interpreta correctamente la estructura real del Excel
 """
-import pandas as pd
+try:
+    import pandas as pd
+    PANDAS_AVAILABLE = True
+except ImportError:
+    PANDAS_AVAILABLE = False
+    pd = None
+
 import openpyxl
 from datetime import date, datetime
 import re
@@ -299,11 +305,12 @@ class ExcelParserFinal:
             except ValueError:
                 continue
         
-        # Intentar con pandas
-        try:
-            return pd.to_datetime(date_str, dayfirst=True).date()
-        except:
-            pass
+        # Intentar con pandas si está disponible
+        if PANDAS_AVAILABLE:
+            try:
+                return pd.to_datetime(date_str, dayfirst=True).date()
+            except:
+                pass
         
         logger.warning(f"No se pudo parsear fecha: {date_str}")
         return None

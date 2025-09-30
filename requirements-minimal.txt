@@ -1,0 +1,15 @@
+# Dependencias mínimas para EAD Oleohidráulica (sin pandas)
+# Usar solo si hay problemas de compatibilidad con pandas
+
+Flask==3.0.3
+peewee==3.17.6
+gunicorn==22.0.0
+python-dotenv==1.0.1
+WTForms==3.1.2
+Flask-WTF==1.2.1
+Flask-Caching==2.3.0
+openpyxl==3.1.5
+requests==2.32.3
+
+# pandas==2.2.2  # Comentado para evitar problemas de compilación
+# numpy>=1.21.0  # Dependencia de pandas, no necesaria sin pandas

@@ -6,7 +6,7 @@ services:
     plan: starter # free, starter, standard, pro
     buildCommand: |
       pip install --upgrade pip
-      pip install -r requirements.txt
+      pip install -r requirements.txt || pip install -r requirements-minimal.txt
       python render_init.py
     startCommand: |
       gunicorn app_web:app \
@@ -19,7 +19,7 @@ services:
         --log-level info
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.0
+        value: 3.11.9
       - key: FLASK_ENV
         value: production
       - key: SECRET_KEY
