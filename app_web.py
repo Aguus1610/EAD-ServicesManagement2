@@ -240,16 +240,26 @@ def get_cached_equipment_autocomplete():
 
 def clear_cache_on_equipment_change():
     """Limpiar caché relacionado con equipos"""
-    cache.delete_memoized(get_cached_equipment_count)
-    cache.delete_memoized(get_cached_equipment_autocomplete)
-    cache.delete_memoized(get_cached_upcoming_services)
-    cache.delete('view//')  # Limpiar caché del dashboard
+    try:
+        cache.delete_memoized(get_cached_equipment_count)
+        cache.delete_memoized(get_cached_equipment_autocomplete)
+        cache.delete_memoized(get_cached_upcoming_services)
+        cache.delete('view//')  # Limpiar caché del dashboard
+        cache.clear()  # Limpiar todo el caché como último recurso
+        logger.info("Caché de equipos limpiado correctamente")
+    except Exception as e:
+        logger.error(f"Error limpiando caché de equipos: {e}")
 
 def clear_cache_on_job_change():
     """Limpiar caché relacionado con trabajos"""
-    cache.delete_memoized(get_cached_jobs_count)
-    cache.delete_memoized(get_cached_upcoming_services)
-    cache.delete('view//')  # Limpiar caché del dashboard
+    try:
+        cache.delete_memoized(get_cached_jobs_count)
+        cache.delete_memoized(get_cached_upcoming_services)
+        cache.delete('view//')  # Limpiar caché del dashboard
+        cache.clear()  # Limpiar todo el caché como último recurso
+        logger.info("Caché de trabajos limpiado correctamente")
+    except Exception as e:
+        logger.error(f"Error limpiando caché de trabajos: {e}")
 
 # ---------------------------- RUTAS PRINCIPALES ----------------------------
 
@@ -1140,6 +1150,13 @@ def import_excel_data(filename):
         clear_cache_on_equipment_change()
         clear_cache_on_job_change()
         
+        # Limpiar completamente el caché para asegurar actualización
+        try:
+            cache.clear()
+            logger.info("Caché completamente limpiado después de importar Excel")
+        except Exception as e:
+            logger.error(f"Error limpiando caché completo: {e}")
+        
         # Mostrar resultados
         if import_result['errors']:
             flash(f'Importación completada con errores. Equipos: {import_result["equipment_imported"]}, Trabajos: {import_result["jobs_imported"]}', 'warning')
@@ -1282,9 +1299,13 @@ def get_dolar_cotization():
 
 @app.route('/api/tiempo')
 def get_current_time():
-    """Obtener fecha y hora actual del servidor"""
+    """Obtener fecha y hora actual del servidor en zona horaria Argentina"""
     try:
-        now = datetime.now()
+        import pytz
+        
+        # Configurar zona horaria de Argentina
+        argentina_tz = pytz.timezone('America/Argentina/Buenos_Aires')
+        now = datetime.now(argentina_tz)
         
         # Nombres de días y meses en español
         dias_semana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
@@ -1297,7 +1318,8 @@ def get_current_time():
             'fecha_corta': now.strftime('%d/%m/%Y'),
             'fecha_completa': f"{dias_semana[now.weekday()]}, {now.day} de {meses[now.month-1]} de {now.year}",
             'timestamp': now.timestamp(),
-            'timezone': 'America/Argentina/Buenos_Aires'
+            'timezone': 'America/Argentina/Buenos_Aires',
+            'utc_offset': now.strftime('%z')
         })
         
     except Exception as e:
