@@ -539,6 +539,9 @@
                 <a class="nav-link px-3 text-white {{ 'fw-bold' if request.endpoint and 'trabajo' in request.endpoint else '' }}" href="/trabajos">
                     <i class="bi bi-wrench"></i> Trabajos
                 </a>
+                <a class="nav-link px-3 text-white {{ 'fw-bold' if request.endpoint and 'cliente' in request.endpoint else '' }}" href="/clientes">
+                    <i class="bi bi-people"></i> Clientes
+                </a>
                 <a class="nav-link px-3 text-white {{ 'fw-bold' if request.endpoint == 'estadisticas' else '' }}" href="/estadisticas">
                     <i class="bi bi-graph-up"></i> Estadísticas
                 </a>
@@ -572,6 +575,9 @@
                         </a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><h6 class="dropdown-header"><i class="bi bi-database me-2"></i>Datos</h6></li>
+                        <li><a class="dropdown-item" href="/api/export/clientes">
+                            <i class="bi bi-file-earmark-spreadsheet me-2"></i> Exportar Clientes
+                        </a></li>
                         <li><a class="dropdown-item" href="/api/export/equipos">
                             <i class="bi bi-file-earmark-spreadsheet me-2"></i> Exportar Equipos
                         </a></li>
@@ -640,6 +646,9 @@
                 </a>
                 <a href="/trabajo/nuevo" class="list-group-item list-group-item-action ps-4" onclick="closeSidebar()">
                     <i class="bi bi-plus-circle me-2" style="color: var(--ead-red);"></i> Nuevo Trabajo
+                </a>
+                <a href="/cliente/nuevo" class="list-group-item list-group-item-action ps-4" onclick="closeSidebar()">
+                    <i class="bi bi-person-plus me-2" style="color: var(--ead-light-blue);"></i> Nuevo Cliente
                 </a>
                 
                 

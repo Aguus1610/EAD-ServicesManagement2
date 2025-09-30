@@ -15,29 +15,125 @@
 
 {% block content %}
 <div class="animate-slide">
-    <!-- Header con búsqueda -->
+    <!-- Header con estadísticas -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h2><i class="bi bi-people" style="color: var(--ead-blue);"></i> Clientes</h2>
+                <h2><i class="bi bi-people" style="color: var(--ead-blue);"></i> Gestión de Clientes</h2>
                 <div class="d-flex gap-2">
-                    <span class="badge bg-info fs-6">{{ total_clientes }} clientes</span>
+                    <a href="/cliente/nuevo" class="btn btn-primary">
+                        <i class="bi bi-person-plus"></i> Nuevo Cliente
+                    </a>
                 </div>
             </div>
             
-            <!-- Barra de búsqueda -->
-            <form method="get" action="/clientes" class="mb-3">
-                <div class="input-group">
-                    <span class="input-group-text"><i class="bi bi-search"></i></span>
-                    <input type="text" class="form-control" name="search" 
-                           placeholder="Buscar cliente por nombre..." 
-                           value="{{ search }}">
-                    <button class="btn btn-outline-secondary" type="submit">Buscar</button>
-                    {% if search %}
-                    <a href="/clientes" class="btn btn-outline-danger">Limpiar</a>
-                    {% endif %}
+            <!-- Estadísticas rápidas -->
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-md-3">
+                    <div class="card bg-primary text-white h-100">
+                        <div class="card-body text-center">
+                            <i class="bi bi-people fs-2 mb-2"></i>
+                            <h4 class="mb-0">{{ total_clientes }}</h4>
+                            <small>Total Clientes</small>
+                        </div>
+                    </div>
                 </div>
-            </form>
+                <div class="col-6 col-md-3">
+                    <div class="card bg-success text-white h-100">
+                        <div class="card-body text-center">
+                            <i class="bi bi-check-circle fs-2 mb-2"></i>
+                            <h4 class="mb-0">{{ total_activos }}</h4>
+                            <small>Activos</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card bg-warning text-white h-100">
+                        <div class="card-body text-center">
+                            <i class="bi bi-pause-circle fs-2 mb-2"></i>
+                            <h4 class="mb-0">{{ total_inactivos }}</h4>
+                            <small>Inactivos</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card bg-info text-white h-100">
+                        <div class="card-body text-center">
+                            <i class="bi bi-graph-up fs-2 mb-2"></i>
+                            <h4 class="mb-0">{{ (clientes|sum(attribute='total_gastado'))|int if clientes else 0 }}</h4>
+                            <small>Total Facturado</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Filtros avanzados -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="bi bi-funnel"></i> Filtros de Búsqueda
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="get" action="/clientes" id="filtrosForm">
+                        <div class="row g-3">
+                            <!-- Búsqueda general -->
+                            <div class="col-12 col-md-4">
+                                <label for="search" class="form-label">Buscar</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                    <input type="text" class="form-control" id="search" name="search" 
+                                           placeholder="Nombre, teléfono, email..." 
+                                           value="{{ search }}">
+                                </div>
+                            </div>
+                            
+                            <!-- Tipo de cliente -->
+                            <div class="col-12 col-md-3">
+                                <label for="tipo_cliente" class="form-label">Tipo</label>
+                                <select class="form-select" id="tipo_cliente" name="tipo_cliente">
+                                    <option value="">Todos los tipos</option>
+                                    {% for tipo in tipos_cliente %}
+                                    <option value="{{ tipo }}" {% if tipo_cliente == tipo %}selected{% endif %}>{{ tipo }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <!-- Estado -->
+                            <div class="col-12 col-md-2">
+                                <label for="activo" class="form-label">Estado</label>
+                                <select class="form-select" id="activo" name="activo">
+                                    <option value="" {% if not activo %}selected{% endif %}>Activos</option>
+                                    <option value="false" {% if activo == 'false' %}selected{% endif %}>Inactivos</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Ordenar por -->
+                            <div class="col-12 col-md-2">
+                                <label for="orden" class="form-label">Ordenar por</label>
+                                <select class="form-select" id="orden" name="orden">
+                                    <option value="nombre" {% if orden == 'nombre' %}selected{% endif %}>Nombre</option>
+                                    <option value="gastos" {% if orden == 'gastos' %}selected{% endif %}>Gastos</option>
+                                    <option value="equipos" {% if orden == 'equipos' %}selected{% endif %}>Equipos</option>
+                                    <option value="fecha" {% if orden == 'fecha' %}selected{% endif %}>Fecha registro</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Botones -->
+                            <div class="col-12 col-md-1 d-flex align-items-end">
+                                <div class="btn-group w-100">
+                                    <button type="submit" class="btn btn-outline-primary" title="Aplicar filtros">
+                                        <i class="bi bi-search"></i>
+                                    </button>
+                                    <a href="/clientes" class="btn btn-outline-secondary" title="Limpiar filtros">
+                                        <i class="bi bi-x-circle"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
     
@@ -45,47 +141,79 @@
     <div class="row">
         <div class="col-12">
             {% if clientes %}
-            <!-- Vista móvil: Cards clickeables -->
+            <!-- Vista móvil: Cards mejoradas -->
             <div class="d-md-none">
-                {% for cliente in clientes %}
-                <div class="card mb-3 cliente-card-mobile" data-href="/cliente/{{ cliente.nombre|urlencode }}" style="cursor: pointer;">
+                {% for cliente_data in clientes %}
+                {% set cliente = cliente_data.cliente %}
+                <div class="card mb-3 cliente-card-mobile shadow-sm" data-href="/cliente/{{ cliente.id }}" style="cursor: pointer;">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-start">
                             <div class="flex-grow-1">
-                                <h6 class="card-title mb-1">
-                                    <i class="bi bi-person-circle me-2 text-primary"></i>
-                                    <strong>{{ cliente.nombre }}</strong>
-                                </h6>
-                                <div class="row g-2 mb-2">
-                                    <div class="col-6">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="bi bi-person-circle me-2 text-primary fs-4"></i>
+                                    <div>
+                                        <h6 class="card-title mb-0">{{ cliente.nombre }}</h6>
                                         <small class="text-muted">
-                                            <i class="bi bi-truck"></i> {{ cliente.total_equipos }} equipos
-                                        </small>
-                                    </div>
-                                    <div class="col-6">
-                                        <small class="text-muted">
-                                            <i class="bi bi-wrench"></i> {{ cliente.total_trabajos }} trabajos
+                                            <i class="bi bi-tag"></i> {{ cliente.tipo_cliente }}
+                                            {% if cliente.ciudad %}
+                                            | <i class="bi bi-geo-alt"></i> {{ cliente.ciudad }}
+                                            {% endif %}
                                         </small>
                                     </div>
                                 </div>
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <strong class="text-success">
-                                            <i class="bi bi-currency-dollar"></i>${{ "{:,.0f}".format(cliente.total_gastado) }}
-                                        </strong>
-                                        <small class="text-muted d-block">Total invertido</small>
+                                
+                                <!-- Información de contacto -->
+                                <div class="row g-2 mb-2">
+                                    {% if cliente.telefono %}
+                                    <div class="col-6">
+                                        <small class="text-muted">
+                                            <i class="bi bi-telephone"></i> {{ cliente.telefono }}
+                                        </small>
                                     </div>
-                                    {% if cliente.ultimo_trabajo %}
-                                    <div class="text-end">
-                                        <small class="text-muted">Último trabajo:</small>
-                                        <small class="d-block fw-medium">{{ cliente.ultimo_trabajo.strftime('%d/%m/%Y') }}</small>
+                                    {% endif %}
+                                    {% if cliente.email %}
+                                    <div class="col-6">
+                                        <small class="text-muted">
+                                            <i class="bi bi-envelope"></i> {{ cliente.email }}
+                                        </small>
                                     </div>
                                     {% endif %}
                                 </div>
+                                
+                                <!-- Estadísticas -->
+                                <div class="row g-2 mb-2">
+                                    <div class="col-4">
+                                        <div class="text-center">
+                                            <div class="badge bg-primary">{{ cliente_data.total_equipos }}</div>
+                                            <small class="text-muted d-block">Equipos</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="text-center">
+                                            <div class="badge bg-secondary">{{ cliente_data.total_trabajos }}</div>
+                                            <small class="text-muted d-block">Trabajos</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="text-center">
+                                            <strong class="text-success">${{ "{:,.0f}".format(cliente_data.total_gastado) }}</strong>
+                                            <small class="text-muted d-block">Facturado</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {% if cliente_data.ultimo_trabajo %}
+                                <div class="text-muted">
+                                    <small><i class="bi bi-calendar-check"></i> Último: {{ cliente_data.ultimo_trabajo.strftime('%d/%m/%Y') }}</small>
+                                </div>
+                                {% endif %}
                             </div>
+                            
                             <div class="d-flex align-items-center">
                                 <div class="me-2">
-                                    <i class="bi bi-arrow-right-circle text-primary card-arrow"></i>
+                                    <span class="badge {% if cliente.activo %}bg-success{% else %}bg-danger{% endif %}">
+                                        {% if cliente.activo %}Activo{% else %}Inactivo{% endif %}
+                                    </span>
                                 </div>
                                 <div class="dropdown">
                                     <button class="btn btn-sm btn-outline-secondary" type="button" 
@@ -96,11 +224,11 @@
                                         <i class="bi bi-three-dots-vertical"></i>
                                     </button>
                                     <ul class="dropdown-menu" aria-labelledby="dropdownMenuCliente{{ loop.index }}">
-                                        <li><a class="dropdown-item" href="/cliente/{{ cliente.nombre|urlencode }}">
+                                        <li><a class="dropdown-item" href="/cliente/{{ cliente.id }}">
                                             <i class="bi bi-eye"></i> Ver detalles
                                         </a></li>
-                                        <li><a class="dropdown-item" href="/cliente/{{ cliente.nombre|urlencode }}/editar">
-                                            <i class="bi bi-pencil"></i> Editar nombre
+                                        <li><a class="dropdown-item" href="/cliente/{{ cliente.id }}/editar">
+                                            <i class="bi bi-pencil"></i> Editar
                                         </a></li>
                                         <li><hr class="dropdown-divider"></li>
                                         <li><a class="dropdown-item" href="/equipos?search={{ cliente.nombre|urlencode }}">
@@ -118,65 +246,100 @@
                 {% endfor %}
             </div>
             
-            <!-- Vista desktop: Tabla -->
+            <!-- Vista desktop: Tabla mejorada -->
             <div class="d-none d-md-block">
-                <div class="card">
+                <div class="card shadow-sm">
                     <div class="card-body p-0">
                         <div class="table-responsive">
                             <table class="table table-hover mb-0">
                                 <thead class="table-light">
                                     <tr>
                                         <th>Cliente</th>
+                                        <th class="text-center">Tipo</th>
+                                        <th class="text-center">Contacto</th>
                                         <th class="text-center">Equipos</th>
                                         <th class="text-center">Trabajos</th>
-                                        <th class="text-end">Total Invertido</th>
-                                        <th class="text-center">Último Trabajo</th>
+                                        <th class="text-end">Total Facturado</th>
+                                        <th class="text-center">Estado</th>
                                         <th class="text-center">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for cliente in clientes %}
-                                    <tr class="cliente-row-clickable" data-href="/cliente/{{ cliente.nombre|urlencode }}" style="cursor: pointer;">
+                                    {% for cliente_data in clientes %}
+                                    {% set cliente = cliente_data.cliente %}
+                                    <tr class="cliente-row-clickable" data-href="/cliente/{{ cliente.id }}" style="cursor: pointer;">
                                         <td>
                                             <div class="d-flex align-items-center">
                                                 <i class="bi bi-person-circle me-2 text-primary fs-5"></i>
                                                 <div>
                                                     <strong>{{ cliente.nombre }}</strong>
-                                                    {% if cliente.nombre == 'Sin especificar' %}
-                                                    <small class="text-muted d-block">Equipos sin propietario asignado</small>
+                                                    {% if cliente.ciudad %}
+                                                    <small class="text-muted d-block">
+                                                        <i class="bi bi-geo-alt"></i> {{ cliente.ciudad }}
+                                                    </small>
                                                     {% endif %}
                                                 </div>
                                             </div>
                                         </td>
                                         <td class="text-center">
+                                            <span class="badge {% if cliente.tipo_cliente == 'Empresa' %}bg-primary{% elif cliente.tipo_cliente == 'Gobierno' %}bg-info{% else %}bg-secondary{% endif %}">
+                                                {{ cliente.tipo_cliente }}
+                                            </span>
+                                        </td>
+                                        <td class="text-center">
+                                            <div>
+                                                {% if cliente.telefono %}
+                                                <small class="text-muted d-block">
+                                                    <i class="bi bi-telephone"></i> {{ cliente.telefono }}
+                                                </small>
+                                                {% endif %}
+                                                {% if cliente.email %}
+                                                <small class="text-muted d-block">
+                                                    <i class="bi bi-envelope"></i> {{ cliente.email }}
+                                                </small>
+                                                {% endif %}
+                                                {% if not cliente.telefono and not cliente.email %}
+                                                <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td class="text-center">
                                             <span class="badge bg-primary">
-                                                <i class="bi bi-truck me-1"></i>{{ cliente.total_equipos }}
+                                                <i class="bi bi-truck me-1"></i>{{ cliente_data.total_equipos }}
                                             </span>
                                         </td>
                                         <td class="text-center">
                                             <span class="badge bg-secondary">
-                                                <i class="bi bi-wrench me-1"></i>{{ cliente.total_trabajos }}
+                                                <i class="bi bi-wrench me-1"></i>{{ cliente_data.total_trabajos }}
                                             </span>
                                         </td>
                                         <td class="text-end">
                                             <strong class="text-success">
-                                                <i class="bi bi-currency-dollar"></i>${{ "{:,.0f}".format(cliente.total_gastado) }}
+                                                <i class="bi bi-currency-dollar"></i>${{ "{:,.0f}".format(cliente_data.total_gastado) }}
                                             </strong>
+                                            {% if cliente_data.promedio_gasto > 0 %}
+                                            <small class="text-muted d-block">
+                                                Prom: ${{ "{:,.0f}".format(cliente_data.promedio_gasto) }}
+                                            </small>
+                                            {% endif %}
                                         </td>
                                         <td class="text-center">
-                                            {% if cliente.ultimo_trabajo %}
-                                                <span class="badge bg-info">{{ cliente.ultimo_trabajo.strftime('%d/%m/%Y') }}</span>
-                                            {% else %}
-                                                <span class="text-muted">-</span>
+                                            <span class="badge {% if cliente.activo %}bg-success{% else %}bg-danger{% endif %}">
+                                                {% if cliente.activo %}Activo{% else %}Inactivo{% endif %}
+                                            </span>
+                                            {% if cliente_data.ultimo_trabajo %}
+                                            <small class="text-muted d-block">
+                                                {{ cliente_data.ultimo_trabajo.strftime('%d/%m/%Y') }}
+                                            </small>
                                             {% endif %}
                                         </td>
                                         <td class="text-center">
                                             <div class="btn-group" role="group">
-                                                <a href="/cliente/{{ cliente.nombre|urlencode }}" class="btn btn-sm btn-outline-primary" 
+                                                <a href="/cliente/{{ cliente.id }}" class="btn btn-sm btn-outline-primary" 
                                                    title="Ver detalles" onclick="event.stopPropagation();">
                                                     <i class="bi bi-eye"></i>
                                                 </a>
-                                                <a href="/cliente/{{ cliente.nombre|urlencode }}/editar" class="btn btn-sm btn-outline-secondary" 
+                                                <a href="/cliente/{{ cliente.id }}/editar" class="btn btn-sm btn-outline-secondary" 
                                                    title="Editar" onclick="event.stopPropagation();">
                                                     <i class="bi bi-pencil"></i>
                                                 </a>

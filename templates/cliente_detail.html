@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ cliente_nombre }} - Clientes - EAD Oleohidráulica{% endblock %}
+{% block title %}{{ cliente.nombre }} - Clientes - EAD Oleohidráulica{% endblock %}
 
 {% block breadcrumb %}
 <nav aria-label="breadcrumb" class="mt-2">
@@ -8,7 +8,7 @@
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="/"><i class="bi bi-house"></i> Inicio</a></li>
             <li class="breadcrumb-item"><a href="/clientes"><i class="bi bi-people"></i> Clientes</a></li>
-            <li class="breadcrumb-item active" aria-current="page">{{ cliente_nombre }}</li>
+            <li class="breadcrumb-item active" aria-current="page">{{ cliente.nombre }}</li>
         </ol>
     </div>
 </nav>
@@ -19,19 +19,63 @@
     <!-- Header del cliente -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card bg-primary text-white">
+            <div class="card bg-gradient-primary text-white shadow-lg">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <h2 class="mb-1">
-                                <i class="bi bi-person-circle me-2"></i>{{ cliente_nombre }}
-                            </h2>
-                            <p class="mb-0 opacity-75">Información completa del cliente</p>
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="bi bi-person-circle me-3 fs-1"></i>
+                                <div>
+                                    <h2 class="mb-1">{{ cliente.nombre }}</h2>
+                                    <div class="d-flex align-items-center gap-3 opacity-90">
+                                        <span class="badge bg-light text-dark">{{ cliente.tipo_cliente }}</span>
+                                        {% if cliente.activo %}
+                                        <span class="badge bg-success">Activo</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Inactivo</span>
+                                        {% endif %}
+                                        <small>Registrado: {{ cliente.fecha_registro.strftime('%d/%m/%Y') }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Información de contacto -->
+                            <div class="row g-3 mt-2">
+                                {% if cliente.telefono %}
+                                <div class="col-auto">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-telephone me-2"></i>
+                                        <span>{{ cliente.telefono }}</span>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                {% if cliente.email %}
+                                <div class="col-auto">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-envelope me-2"></i>
+                                        <span>{{ cliente.email }}</span>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                {% if cliente.ciudad %}
+                                <div class="col-auto">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-geo-alt me-2"></i>
+                                        <span>{{ cliente.ciudad }}</span>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
                         </div>
                         <div class="text-end">
-                            <a href="/cliente/{{ cliente_nombre|urlencode }}/editar" class="btn btn-light btn-sm">
-                                <i class="bi bi-pencil"></i> Editar
-                            </a>
+                            <div class="btn-group">
+                                <a href="/cliente/{{ cliente.id }}/editar" class="btn btn-light btn-sm">
+                                    <i class="bi bi-pencil"></i> Editar
+                                </a>
+                                <button class="btn btn-danger btn-sm" onclick="confirmarDesactivacion()">
+                                    <i class="bi bi-trash"></i> Desactivar
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -70,10 +114,52 @@
         </div>
     </div>
 
+    <!-- Información adicional del cliente -->
+    {% if cliente.direccion or cliente.cuit_dni or cliente.notas %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-info-circle text-info"></i> Información Adicional
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% if cliente.direccion %}
+                        <div class="col-12 col-md-6 mb-3">
+                            <h6><i class="bi bi-house"></i> Dirección</h6>
+                            <p class="text-muted mb-0">{{ cliente.direccion }}</p>
+                            {% if cliente.codigo_postal %}
+                            <small class="text-muted">CP: {{ cliente.codigo_postal }}</small>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        
+                        {% if cliente.cuit_dni %}
+                        <div class="col-12 col-md-6 mb-3">
+                            <h6><i class="bi bi-card-text"></i> CUIT/DNI</h6>
+                            <p class="text-muted mb-0">{{ cliente.cuit_dni }}</p>
+                        </div>
+                        {% endif %}
+                        
+                        {% if cliente.notas %}
+                        <div class="col-12 mb-3">
+                            <h6><i class="bi bi-journal-text"></i> Notas</h6>
+                            <p class="text-muted mb-0">{{ cliente.notas }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="row">
         <!-- Gráfico de gastos mensuales -->
         <div class="col-12 col-lg-8 mb-4">
-            <div class="card h-100">
+            <div class="card h-100 shadow-sm">
                 <div class="card-header">
                     <h5 class="mb-0">
                         <i class="bi bi-graph-up text-success"></i> Gastos por Mes (Últimos 6 meses)
@@ -85,9 +171,9 @@
             </div>
         </div>
 
-        <!-- Equipos con más gastos -->
+        <!-- Equipos con más gastos y próximos servicios -->
         <div class="col-12 col-lg-4 mb-4">
-            <div class="card h-100">
+            <div class="card h-100 shadow-sm">
                 <div class="card-header">
                     <h5 class="mb-0">
                         <i class="bi bi-truck text-primary"></i> Equipos por Gasto
@@ -117,6 +203,68 @@
             </div>
         </div>
     </div>
+
+    <!-- Próximos servicios -->
+    {% if proximos_servicios %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-calendar-check text-warning"></i> Próximos Servicios
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Equipo</th>
+                                    <th class="text-center">Fecha Programada</th>
+                                    <th class="text-center">Días Restantes</th>
+                                    <th class="text-center">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for servicio in proximos_servicios %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ servicio.equipo.marca }} {{ servicio.equipo.modelo }}</strong>
+                                        <small class="text-muted d-block">{{ servicio.equipo.n_serie }}</small>
+                                    </td>
+                                    <td class="text-center">
+                                        {{ servicio.fecha.strftime('%d/%m/%Y') }}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-{{ servicio.status }}">
+                                            {% if servicio.days_left < 0 %}
+                                                {{ servicio.days_left|abs }} días vencido
+                                            {% elif servicio.days_left == 0 %}
+                                                Hoy
+                                            {% else %}
+                                                {{ servicio.days_left }} días
+                                            {% endif %}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if servicio.days_left < 0 %}
+                                        <i class="bi bi-exclamation-triangle text-danger" title="Vencido"></i>
+                                        {% elif servicio.days_left < 7 %}
+                                        <i class="bi bi-clock text-warning" title="Próximo"></i>
+                                        {% else %}
+                                        <i class="bi bi-check-circle text-success" title="A tiempo"></i>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Equipos del cliente -->
     <div class="row mb-4">
@@ -311,7 +459,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 borderColor: 'rgb(75, 192, 192)',
                 backgroundColor: 'rgba(75, 192, 192, 0.1)',
                 tension: 0.4,
-                fill: true
+                fill: true,
+                borderWidth: 3
             }]
         },
         options: {
@@ -320,6 +469,13 @@ document.addEventListener('DOMContentLoaded', function() {
             plugins: {
                 legend: {
                     display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Gastos: $' + context.parsed.y.toLocaleString();
+                        }
+                    }
                 }
             },
             scales: {
@@ -334,11 +490,63 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             elements: {
                 point: {
-                    radius: 4,
-                    hoverRadius: 6
+                    radius: 5,
+                    hoverRadius: 8,
+                    backgroundColor: 'rgb(75, 192, 192)',
+                    borderColor: '#fff',
+                    borderWidth: 2
                 }
             }
         }
+    });
+});
+
+// Función para confirmar desactivación del cliente
+function confirmarDesactivacion() {
+    if (confirm('¿Está seguro de que desea desactivar este cliente?\n\nEl cliente no aparecerá en las búsquedas pero se mantendrán todos sus datos.')) {
+        // Crear formulario para enviar POST
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/cliente/{{ cliente.id }}/eliminar';
+        
+        // Agregar token CSRF si es necesario
+        const csrfToken = document.querySelector('meta[name="csrf-token"]');
+        if (csrfToken) {
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrf_token';
+            csrfInput.value = csrfToken.getAttribute('content');
+            form.appendChild(csrfInput);
+        }
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Funciones de utilidad para acciones rápidas
+function llamarCliente() {
+    {% if cliente.telefono %}
+    window.open('tel:{{ cliente.telefono }}', '_self');
+    {% else %}
+    alert('Este cliente no tiene teléfono registrado.');
+    {% endif %}
+}
+
+function emailCliente() {
+    {% if cliente.email %}
+    window.open('mailto:{{ cliente.email }}', '_self');
+    {% else %}
+    alert('Este cliente no tiene email registrado.');
+    {% endif %}
+}
+
+// Agregar tooltips a los elementos
+document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar tooltips de Bootstrap
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
     });
 });
 </script>

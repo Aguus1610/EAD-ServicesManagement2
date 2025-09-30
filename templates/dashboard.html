@@ -130,25 +130,16 @@
         </div>
         
         <div class="col-6 col-lg-3">
-            <div class="card stat-card text-center h-100 {% if services_vencidos > 0 %}border-danger{% endif %}" style="cursor: pointer;" onclick="showOverdueServices()">
+            <div class="card stat-card text-center h-100" data-href="/clientes" style="cursor: pointer;">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-2">
-                        {% if services_vencidos > 0 %}
-                        <i class="bi bi-exclamation-triangle fs-2 text-danger"></i>
-                        <span class="badge bg-danger rounded-pill pulse">¡Urgente!</span>
-                        {% else %}
-                        <i class="bi bi-check-circle fs-2 text-info"></i>
-                        <span class="badge bg-info rounded-pill">OK</span>
-                        {% endif %}
+                        <i class="bi bi-people fs-2" style="color: var(--ead-light-blue);"></i>
+                        <span class="badge bg-info rounded-pill">Activos</span>
                     </div>
-                    <h3 class="mb-1 fw-bold {% if services_vencidos > 0 %}text-danger{% else %}text-info{% endif %}">{{ services_vencidos }}</h3>
-                    <p class="text-muted mb-2 small">Servicios Vencidos</p>
+                    <h3 class="mb-1 fw-bold">{{ total_clientes }}</h3>
+                    <p class="text-muted mb-2 small">Clientes Registrados</p>
                     <div class="progress" style="height: 4px;">
-                        {% if services_vencidos > 0 %}
-                        <div class="progress-bar bg-danger" style="width: 100%"></div>
-                        {% else %}
                         <div class="progress-bar bg-info" style="width: 100%"></div>
-                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -198,6 +189,27 @@
                 </div>
             </div>
         </div>
+        
+        <div class="col-12 col-md-6 mb-3">
+            <div class="card h-100 main-action-card" data-href="/clientes" style="cursor: pointer;">
+                <div class="card-body text-center">
+                    <i class="bi bi-people fs-1 mb-3" style="color: var(--ead-light-blue);"></i>
+                    <h5 class="card-title">Gestión de Clientes</h5>
+                    <p class="text-muted mb-3">Administra información completa de tus clientes</p>
+                    <div class="d-grid gap-2">
+                        <a href="/clientes" class="btn btn-info" onclick="event.stopPropagation();">
+                            <i class="bi bi-list-ul"></i> Ver Clientes ({{ total_clientes }})
+                        </a>
+                        <a href="/cliente/nuevo" class="btn btn-outline-info" onclick="event.stopPropagation();">
+                            <i class="bi bi-person-plus"></i> Nuevo Cliente
+                        </a>
+                    </div>
+                </div>
+                <div class="card-overlay">
+                    <i class="bi bi-arrow-right-circle-fill"></i>
+                </div>
+            </div>
+        </div>
     </div>
     
     <!-- Acciones adicionales -->
@@ -209,6 +221,9 @@
                     <div class="d-grid gap-2 d-md-flex">
                         <a href="/estadisticas" class="btn btn-outline-info">
                             <i class="bi bi-graph-up"></i> Ver Estadísticas
+                        </a>
+                        <a href="/api/export/clientes" class="btn btn-outline-secondary">
+                            <i class="bi bi-download"></i> Exportar Clientes
                         </a>
                         <a href="/api/export/equipos" class="btn btn-outline-secondary">
                             <i class="bi bi-download"></i> Exportar Equipos

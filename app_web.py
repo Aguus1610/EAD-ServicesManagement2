@@ -13,7 +13,7 @@ import io
 import os
 import logging
 import traceback
-from peewee import SqliteDatabase, Model, CharField, DateField, TextField, IntegerField, FloatField, ForeignKeyField, fn
+from peewee import SqliteDatabase, Model, CharField, DateField, TextField, IntegerField, FloatField, ForeignKeyField, BooleanField, fn
 from utils.validators import ValidationError, validate_equipment_data, validate_job_data
 from utils.excel_importer import ExcelImporter, DatabaseImporter, clear_all_data, validate_excel_file
 from utils.excel_importer_v2 import ExcelImporterV2, validate_excel_file_v2
@@ -71,20 +71,6 @@ config_class.init_app(app)
 # Inicializar sistema de caché
 cache = Cache(app)
 
-# Inicializar base de datos automáticamente
-try:
-    init_db()
-    logger.info("Base de datos inicializada correctamente")
-except Exception as e:
-    logger.error(f"Error inicializando base de datos: {e}")
-    # Intentar crear las tablas de forma segura
-    try:
-        db.connect()
-        db.create_tables([Equipment, Job], safe=True)
-        logger.info("Tablas creadas con safe=True")
-    except Exception as e2:
-        logger.error(f"Error crítico con base de datos: {e2}")
-
 # Manejador de errores global
 @app.errorhandler(500)
 def internal_error(error):
@@ -115,12 +101,30 @@ class BaseModel(Model):
     class Meta:
         database = db
 
+class Cliente(BaseModel):
+    """Modelo de Cliente con información completa"""
+    nombre = CharField(unique=True)
+    telefono = CharField(null=True)
+    email = CharField(null=True)
+    direccion = TextField(null=True)
+    ciudad = CharField(null=True)
+    codigo_postal = CharField(null=True)
+    cuit_dni = CharField(null=True)
+    tipo_cliente = CharField(default='Particular')  # Particular, Empresa, Gobierno
+    fecha_registro = DateField(default=datetime.now().date)
+    activo = BooleanField(default=True)
+    notas = TextField(null=True)
+    
+    class Meta:
+        table_name = 'cliente'
+
 class Equipment(BaseModel):
     marca = CharField()
     modelo = CharField()
     anio = IntegerField()
     n_serie = CharField()
-    propietario = CharField(null=True)
+    propietario = CharField(null=True)  # Mantener por compatibilidad
+    cliente = ForeignKeyField(Cliente, backref='equipos', null=True, on_delete='SET NULL')
     vehiculo = CharField(null=True)
     dominio = CharField(null=True)
     notes = TextField(null=True)
@@ -136,8 +140,28 @@ class Job(BaseModel):
 
 def init_db():
     """Inicializar base de datos"""
-    db.connect()
-    db.create_tables([Equipment, Job])
+    try:
+        if not db.is_closed():
+            db.close()
+        db.connect()
+    except:
+        # Si ya está conectada, continuar
+        pass
+    db.create_tables([Cliente, Equipment, Job], safe=True)
+
+# Inicializar base de datos automáticamente
+try:
+    init_db()
+    logger.info("Base de datos inicializada correctamente")
+except Exception as e:
+    logger.error(f"Error inicializando base de datos: {e}")
+    # Intentar crear las tablas de forma segura
+    try:
+        db.connect()
+        db.create_tables([Cliente, Equipment, Job], safe=True)
+        logger.info("Tablas creadas con safe=True")
+    except Exception as e2:
+        logger.error(f"Error crítico con base de datos: {e2}")
 
 # ---------------------------- FUNCIONES DE CACHÉ ----------------------------
 
@@ -150,7 +174,7 @@ def get_cached_equipment_count():
         logger.error(f"Error obteniendo conteo de equipos: {e}")
         # Intentar crear las tablas si no existen
         try:
-            db.create_tables([Equipment, Job], safe=True)
+            db.create_tables([Cliente, Equipment, Job], safe=True)
             return Equipment.select().count()
         except Exception as e2:
             logger.error(f"Error crítico con equipos: {e2}")
@@ -165,7 +189,7 @@ def get_cached_jobs_count():
         logger.error(f"Error obteniendo conteo de trabajos: {e}")
         # Intentar crear las tablas si no existen
         try:
-            db.create_tables([Equipment, Job], safe=True)
+            db.create_tables([Cliente, Equipment, Job], safe=True)
             return Job.select().count()
         except Exception as e2:
             logger.error(f"Error crítico con trabajos: {e2}")
@@ -271,6 +295,7 @@ def index():
         # Obtener estadísticas básicas con caché
         total_equipment = get_cached_equipment_count()
         total_jobs = get_cached_jobs_count()
+        total_clientes = Cliente.select().where(Cliente.activo == True).count()
         
         # Próximos servicios
         upcoming_services_data = get_cached_upcoming_services()
@@ -278,6 +303,7 @@ def index():
         return render_template('dashboard.html',
                              total_equipment=total_equipment,
                              total_jobs=total_jobs,
+                             total_clientes=total_clientes,
                              total_upcoming=upcoming_services_data['total_upcoming'],
                              services_vencidos=upcoming_services_data['services_vencidos'],
                              upcoming_services=upcoming_services_data['upcoming_services'][:10])
@@ -335,7 +361,7 @@ def equipos_list():
         logger.error(f"Error en lista de equipos: {e}")
         # Intentar crear las tablas si no existen
         try:
-            db.create_tables([Equipment, Job], safe=True)
+            db.create_tables([Cliente, Equipment, Job], safe=True)
             flash('Base de datos inicializada. Recargue la página.', 'info')
         except Exception as e2:
             logger.error(f"Error crítico inicializando BD: {e2}")
@@ -588,7 +614,7 @@ def trabajos_list():
         logger.error(f"Error en lista de trabajos: {e}")
         # Intentar crear las tablas si no existen
         try:
-            db.create_tables([Equipment, Job], safe=True)
+            db.create_tables([Cliente, Equipment, Job], safe=True)
             flash('Base de datos inicializada. Recargue la página.', 'info')
         except Exception as e2:
             logger.error(f"Error crítico inicializando BD: {e2}")
@@ -886,67 +912,92 @@ def backup_database():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# ---------------------------- RUTAS DE CLIENTES ----------------------------
+# ---------------------------- RUTAS DE CLIENTES MEJORADAS ----------------------------
 
 @app.route('/clientes')
 def clientes_list():
-    """Lista de clientes/propietarios"""
+    """Lista de clientes con funcionalidades avanzadas"""
     try:
+        # Parámetros de filtro y búsqueda
         search = request.args.get('search', '').strip()
+        tipo_cliente = request.args.get('tipo_cliente', '')
+        activo = request.args.get('activo', '')
+        orden = request.args.get('orden', 'nombre')  # nombre, gastos, equipos, fecha
         
-        # Obtener todos los propietarios únicos con estadísticas
-        clientes_data = []
+        # Query base
+        clientes_query = Cliente.select().where(Cliente.activo == True)
         
+        # Aplicar filtros
         if search:
-            # Buscar equipos que coincidan con el propietario
-            equipos_query = Equipment.select().where(
-                Equipment.propietario.contains(search)
+            clientes_query = clientes_query.where(
+                (Cliente.nombre.contains(search)) |
+                (Cliente.telefono.contains(search)) |
+                (Cliente.email.contains(search)) |
+                (Cliente.ciudad.contains(search))
             )
-        else:
-            equipos_query = Equipment.select()
         
-        # Agrupar por propietario
-        propietarios_dict = {}
+        if tipo_cliente:
+            clientes_query = clientes_query.where(Cliente.tipo_cliente == tipo_cliente)
         
-        for equipo in equipos_query:
-            propietario = equipo.propietario or 'Sin especificar'
-            
-            if propietario not in propietarios_dict:
-                propietarios_dict[propietario] = {
-                    'nombre': propietario,
-                    'equipos': [],
-                    'total_equipos': 0,
-                    'total_trabajos': 0,
-                    'total_gastado': 0,
-                    'ultimo_trabajo': None
-                }
-            
-            # Agregar equipo
-            propietarios_dict[propietario]['equipos'].append(equipo)
-            propietarios_dict[propietario]['total_equipos'] += 1
-            
-            # Calcular trabajos y gastos
-            trabajos = Job.select().where(Job.equipment == equipo)
-            trabajos_count = trabajos.count()
-            total_gastado = sum(trabajo.budget for trabajo in trabajos)
-            
-            propietarios_dict[propietario]['total_trabajos'] += trabajos_count
-            propietarios_dict[propietario]['total_gastado'] += total_gastado
-            
-            # Último trabajo
-            ultimo_trabajo = trabajos.order_by(Job.date_done.desc()).first()
-            if ultimo_trabajo:
-                if (not propietarios_dict[propietario]['ultimo_trabajo'] or 
-                    ultimo_trabajo.date_done > propietarios_dict[propietario]['ultimo_trabajo']):
-                    propietarios_dict[propietario]['ultimo_trabajo'] = ultimo_trabajo.date_done
+        if activo == 'false':
+            clientes_query = Cliente.select().where(Cliente.activo == False)
         
-        clientes_data = list(propietarios_dict.values())
-        clientes_data.sort(key=lambda x: x['total_gastado'], reverse=True)
+        # Obtener clientes con estadísticas
+        clientes_data = []
+        for cliente in clientes_query:
+            # Estadísticas del cliente
+            equipos = Equipment.select().where(Equipment.cliente == cliente)
+            total_equipos = equipos.count()
+            
+            # Trabajos y gastos
+            total_trabajos = 0
+            total_gastado = 0
+            ultimo_trabajo = None
+            
+            for equipo in equipos:
+                trabajos = Job.select().where(Job.equipment == equipo)
+                total_trabajos += trabajos.count()
+                total_gastado += sum(trabajo.budget for trabajo in trabajos)
+                
+                ultimo_trabajo_equipo = trabajos.order_by(Job.date_done.desc()).first()
+                if ultimo_trabajo_equipo:
+                    if not ultimo_trabajo or ultimo_trabajo_equipo.date_done > ultimo_trabajo:
+                        ultimo_trabajo = ultimo_trabajo_equipo.date_done
+            
+            clientes_data.append({
+                'cliente': cliente,
+                'total_equipos': total_equipos,
+                'total_trabajos': total_trabajos,
+                'total_gastado': total_gastado,
+                'ultimo_trabajo': ultimo_trabajo,
+                'promedio_gasto': total_gastado / total_trabajos if total_trabajos > 0 else 0
+            })
         
-        return render_template('clientes.html', 
+        # Ordenar resultados
+        if orden == 'gastos':
+            clientes_data.sort(key=lambda x: x['total_gastado'], reverse=True)
+        elif orden == 'equipos':
+            clientes_data.sort(key=lambda x: x['total_equipos'], reverse=True)
+        elif orden == 'fecha':
+            clientes_data.sort(key=lambda x: x['cliente'].fecha_registro, reverse=True)
+        else:  # nombre
+            clientes_data.sort(key=lambda x: x['cliente'].nombre)
+        
+        # Estadísticas generales
+        total_clientes = len(clientes_data)
+        total_activos = Cliente.select().where(Cliente.activo == True).count()
+        total_inactivos = Cliente.select().where(Cliente.activo == False).count()
+        
+        return render_template('clientes.html',
                              clientes=clientes_data,
                              search=search,
-                             total_clientes=len(clientes_data))
+                             tipo_cliente=tipo_cliente,
+                             activo=activo,
+                             orden=orden,
+                             total_clientes=total_clientes,
+                             total_activos=total_activos,
+                             total_inactivos=total_inactivos,
+                             tipos_cliente=['Particular', 'Empresa', 'Gobierno'])
     
     except Exception as e:
         logger.error(f"Error en lista de clientes: {e}")
@@ -954,22 +1005,71 @@ def clientes_list():
         flash('Error cargando clientes', 'error')
         return render_template('clientes.html', clientes=[], search='', total_clientes=0)
 
-@app.route('/cliente/<nombre>')
-def cliente_detail(nombre):
+@app.route('/cliente/nuevo', methods=['GET', 'POST'])
+def cliente_new():
+    """Crear nuevo cliente"""
+    if request.method == 'POST':
+        try:
+            # Obtener datos del formulario
+            form_data = {
+                'nombre': request.form.get('nombre', '').strip(),
+                'telefono': request.form.get('telefono', '').strip(),
+                'email': request.form.get('email', '').strip(),
+                'direccion': request.form.get('direccion', '').strip(),
+                'ciudad': request.form.get('ciudad', '').strip(),
+                'codigo_postal': request.form.get('codigo_postal', '').strip(),
+                'cuit_dni': request.form.get('cuit_dni', '').strip(),
+                'tipo_cliente': request.form.get('tipo_cliente', 'Particular'),
+                'notas': request.form.get('notas', '').strip()
+            }
+            
+            # Validaciones
+            if not form_data['nombre']:
+                flash('El nombre del cliente es obligatorio', 'error')
+                raise ValueError('Nombre requerido')
+            
+            # Verificar que no exista un cliente con el mismo nombre
+            if Cliente.select().where(Cliente.nombre == form_data['nombre']).exists():
+                flash('Ya existe un cliente con ese nombre', 'error')
+                raise ValueError('Cliente duplicado')
+            
+            # Crear cliente
+            cliente = Cliente.create(
+                nombre=form_data['nombre'],
+                telefono=form_data['telefono'] or None,
+                email=form_data['email'] or None,
+                direccion=form_data['direccion'] or None,
+                ciudad=form_data['ciudad'] or None,
+                codigo_postal=form_data['codigo_postal'] or None,
+                cuit_dni=form_data['cuit_dni'] or None,
+                tipo_cliente=form_data['tipo_cliente'],
+                notas=form_data['notas'] or None
+            )
+            
+            # Limpiar caché
+            clear_cache_on_equipment_change()
+            
+            flash(f'Cliente "{form_data["nombre"]}" creado exitosamente', 'success')
+            return redirect(url_for('cliente_detail', cliente_id=cliente.id))
+            
+        except Exception as e:
+            logger.error(f"Error creando cliente: {e}")
+            flash('Error al crear el cliente. Inténtelo nuevamente.', 'error')
+    
+    return render_template('cliente_form.html', cliente=None)
+
+@app.route('/cliente/<int:cliente_id>')
+def cliente_detail(cliente_id):
     """Detalle de un cliente específico"""
     try:
+        cliente = Cliente.get_by_id(cliente_id)
+        
         # Obtener equipos del cliente
-        equipos = Equipment.select().where(Equipment.propietario == nombre)
-        
-        if not equipos.exists():
-            flash('Cliente no encontrado', 'error')
-            return redirect(url_for('clientes_list'))
-        
-        # Estadísticas del cliente
+        equipos = Equipment.select().where(Equipment.cliente == cliente)
         total_equipos = equipos.count()
         
         # Obtener todos los trabajos de los equipos del cliente
-        trabajos_query = Job.select().join(Equipment).where(Equipment.propietario == nombre)
+        trabajos_query = Job.select().join(Equipment).where(Equipment.cliente == cliente)
         total_trabajos = trabajos_query.count()
         total_gastado = sum(trabajo.budget for trabajo in trabajos_query)
         
@@ -1010,68 +1110,313 @@ def cliente_detail(nombre):
         
         equipos_gastos.sort(key=lambda x: x['total_gastado'], reverse=True)
         
+        # Próximos servicios
+        proximos_servicios = []
+        today = datetime.now().date()
+        for equipo in equipos:
+            ultimo_trabajo = Job.select().where(Job.equipment == equipo).order_by(Job.date_done.desc()).first()
+            if ultimo_trabajo and ultimo_trabajo.next_service_date:
+                days_left = (ultimo_trabajo.next_service_date - today).days
+                if days_left <= 30:  # Próximos 30 días
+                    proximos_servicios.append({
+                        'equipo': equipo,
+                        'fecha': ultimo_trabajo.next_service_date,
+                        'days_left': days_left,
+                        'status': 'danger' if days_left < 0 else 'warning' if days_left < 7 else 'success'
+                    })
+        
+        proximos_servicios.sort(key=lambda x: x['days_left'])
+        
         return render_template('cliente_detail.html',
-                             cliente_nombre=nombre,
+                             cliente=cliente,
                              equipos=list(equipos),
                              total_equipos=total_equipos,
                              total_trabajos=total_trabajos,
                              total_gastado=total_gastado,
                              trabajos_recientes=list(trabajos_recientes),
                              gastos_mensuales=gastos_mensuales,
-                             equipos_gastos=equipos_gastos)
+                             equipos_gastos=equipos_gastos,
+                             proximos_servicios=proximos_servicios)
     
+    except Cliente.DoesNotExist:
+        flash('Cliente no encontrado', 'error')
+        return redirect(url_for('clientes_list'))
     except Exception as e:
         logger.error(f"Error en detalle de cliente: {e}")
         logger.error(traceback.format_exc())
         flash('Error cargando detalle del cliente', 'error')
         return redirect(url_for('clientes_list'))
 
-@app.route('/cliente/<nombre>/editar', methods=['GET', 'POST'])
-def cliente_edit(nombre):
-    """Editar nombre de cliente (actualiza todos sus equipos)"""
+@app.route('/cliente/<int:cliente_id>/editar', methods=['GET', 'POST'])
+def cliente_edit(cliente_id):
+    """Editar cliente"""
     try:
-        if request.method == 'POST':
-            nuevo_nombre = request.form.get('nuevo_nombre', '').strip()
+        cliente = Cliente.get_by_id(cliente_id)
+    except Cliente.DoesNotExist:
+        flash('Cliente no encontrado', 'error')
+        return redirect(url_for('clientes_list'))
+    
+    if request.method == 'POST':
+        try:
+            # Obtener datos del formulario
+            form_data = {
+                'nombre': request.form.get('nombre', '').strip(),
+                'telefono': request.form.get('telefono', '').strip(),
+                'email': request.form.get('email', '').strip(),
+                'direccion': request.form.get('direccion', '').strip(),
+                'ciudad': request.form.get('ciudad', '').strip(),
+                'codigo_postal': request.form.get('codigo_postal', '').strip(),
+                'cuit_dni': request.form.get('cuit_dni', '').strip(),
+                'tipo_cliente': request.form.get('tipo_cliente', 'Particular'),
+                'activo': request.form.get('activo') == 'on',
+                'notas': request.form.get('notas', '').strip()
+            }
             
-            if not nuevo_nombre:
-                flash('El nombre del cliente es requerido', 'error')
-                return redirect(url_for('cliente_edit', nombre=nombre))
+            # Validaciones
+            if not form_data['nombre']:
+                flash('El nombre del cliente es obligatorio', 'error')
+                raise ValueError('Nombre requerido')
             
-            if nuevo_nombre == nombre:
-                flash('El nombre no ha cambiado', 'info')
-                return redirect(url_for('cliente_detail', nombre=nombre))
+            # Verificar que no exista otro cliente con el mismo nombre
+            existing = Cliente.select().where(
+                (Cliente.nombre == form_data['nombre']) &
+                (Cliente.id != cliente_id)
+            ).first()
+            if existing:
+                flash('Ya existe otro cliente con ese nombre', 'error')
+                raise ValueError('Cliente duplicado')
             
-            # Verificar que no exista otro cliente con ese nombre
-            if Equipment.select().where(Equipment.propietario == nuevo_nombre).exists():
-                flash('Ya existe un cliente con ese nombre', 'error')
-                return redirect(url_for('cliente_edit', nombre=nombre))
-            
-            # Actualizar todos los equipos del cliente
-            equipos_actualizados = Equipment.update(propietario=nuevo_nombre).where(
-                Equipment.propietario == nombre
-            ).execute()
+            # Actualizar cliente
+            cliente.nombre = form_data['nombre']
+            cliente.telefono = form_data['telefono'] or None
+            cliente.email = form_data['email'] or None
+            cliente.direccion = form_data['direccion'] or None
+            cliente.ciudad = form_data['ciudad'] or None
+            cliente.codigo_postal = form_data['codigo_postal'] or None
+            cliente.cuit_dni = form_data['cuit_dni'] or None
+            cliente.tipo_cliente = form_data['tipo_cliente']
+            cliente.activo = form_data['activo']
+            cliente.notas = form_data['notas'] or None
+            cliente.save()
             
             # Limpiar caché
             clear_cache_on_equipment_change()
             
-            flash(f'Cliente actualizado exitosamente. {equipos_actualizados} equipos actualizados.', 'success')
-            return redirect(url_for('cliente_detail', nombre=nuevo_nombre))
+            flash(f'Cliente "{form_data["nombre"]}" actualizado exitosamente', 'success')
+            return redirect(url_for('cliente_detail', cliente_id=cliente_id))
+            
+        except Exception as e:
+            logger.error(f"Error editando cliente {cliente_id}: {e}")
+            flash('Error al actualizar el cliente. Inténtelo nuevamente.', 'error')
+    
+    return render_template('cliente_form.html', cliente=cliente)
+
+@app.route('/cliente/<int:cliente_id>/eliminar', methods=['POST'])
+def cliente_delete(cliente_id):
+    """Eliminar cliente (desactivar)"""
+    try:
+        cliente = Cliente.get_by_id(cliente_id)
         
-        # GET - Mostrar formulario
-        equipos = Equipment.select().where(Equipment.propietario == nombre)
-        if not equipos.exists():
-            flash('Cliente no encontrado', 'error')
-            return redirect(url_for('clientes_list'))
+        # En lugar de eliminar, desactivar el cliente
+        cliente.activo = False
+        cliente.save()
         
-        return render_template('cliente_edit.html', 
-                             cliente_nombre=nombre,
-                             total_equipos=equipos.count())
+        # Limpiar caché
+        clear_cache_on_equipment_change()
+        
+        flash(f'Cliente "{cliente.nombre}" desactivado exitosamente', 'success')
+        return redirect(url_for('clientes_list'))
+        
+    except Cliente.DoesNotExist:
+        flash('Cliente no encontrado', 'error')
+        return redirect(url_for('clientes_list'))
+    except Exception as e:
+        logger.error(f"Error eliminando cliente {cliente_id}: {e}")
+        flash('Error al desactivar el cliente', 'error')
+        return redirect(url_for('clientes_list'))
+
+# ---------------------------- API ENDPOINTS PARA CLIENTES ----------------------------
+
+@app.route('/api/clientes/search')
+def api_clientes_search():
+    """API: Búsqueda de clientes para autocompletado"""
+    query = request.args.get('q', '').strip()
+    
+    if len(query) < 2:
+        return jsonify([])
+    
+    try:
+        clientes = Cliente.select().where(
+            (Cliente.nombre.contains(query)) &
+            (Cliente.activo == True)
+        ).limit(10)
+        
+        results = []
+        for cliente in clientes:
+            results.append({
+                'id': cliente.id,
+                'nombre': cliente.nombre,
+                'telefono': cliente.telefono,
+                'email': cliente.email,
+                'tipo': cliente.tipo_cliente,
+                'ciudad': cliente.ciudad
+            })
+        
+        return jsonify(results)
     
     except Exception as e:
-        logger.error(f"Error editando cliente: {e}")
+        logger.error(f"Error en búsqueda de clientes: {e}")
+        return jsonify([]), 500
+
+@app.route('/api/clientes/<int:cliente_id>/estadisticas')
+def api_cliente_estadisticas(cliente_id):
+    """API: Obtener estadísticas de un cliente"""
+    try:
+        cliente = Cliente.get_by_id(cliente_id)
+        
+        # Estadísticas básicas
+        equipos = Equipment.select().where(Equipment.cliente == cliente)
+        total_equipos = equipos.count()
+        
+        trabajos_query = Job.select().join(Equipment).where(Equipment.cliente == cliente)
+        total_trabajos = trabajos_query.count()
+        total_gastado = sum(trabajo.budget for trabajo in trabajos_query)
+        
+        # Último trabajo
+        ultimo_trabajo = trabajos_query.order_by(Job.date_done.desc()).first()
+        ultimo_trabajo_fecha = ultimo_trabajo.date_done.strftime('%d/%m/%Y') if ultimo_trabajo else None
+        
+        return jsonify({
+            'cliente_id': cliente.id,
+            'nombre': cliente.nombre,
+            'total_equipos': total_equipos,
+            'total_trabajos': total_trabajos,
+            'total_gastado': total_gastado,
+            'promedio_gasto': total_gastado / total_trabajos if total_trabajos > 0 else 0,
+            'ultimo_trabajo': ultimo_trabajo_fecha,
+            'activo': cliente.activo
+        })
+    
+    except Cliente.DoesNotExist:
+        return jsonify({'error': 'Cliente no encontrado'}), 404
+    except Exception as e:
+        logger.error(f"Error obteniendo estadísticas del cliente {cliente_id}: {e}")
+        return jsonify({'error': 'Error interno'}), 500
+
+@app.route('/api/export/clientes')
+def export_clientes():
+    """Exportar clientes a CSV"""
+    try:
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow([
+            'ID', 'Nombre', 'Tipo', 'Teléfono', 'Email', 'Dirección', 
+            'Ciudad', 'Código Postal', 'CUIT/DNI', 'Fecha Registro', 
+            'Activo', 'Total Equipos', 'Total Trabajos', 'Total Facturado', 'Notas'
+        ])
+        
+        for cliente in Cliente.select():
+            # Calcular estadísticas
+            equipos = Equipment.select().where(Equipment.cliente == cliente)
+            total_equipos = equipos.count()
+            
+            trabajos_query = Job.select().join(Equipment).where(Equipment.cliente == cliente)
+            total_trabajos = trabajos_query.count()
+            total_gastado = sum(trabajo.budget for trabajo in trabajos_query)
+            
+            writer.writerow([
+                cliente.id,
+                cliente.nombre,
+                cliente.tipo_cliente,
+                cliente.telefono or '',
+                cliente.email or '',
+                cliente.direccion or '',
+                cliente.ciudad or '',
+                cliente.codigo_postal or '',
+                cliente.cuit_dni or '',
+                cliente.fecha_registro.strftime('%d/%m/%Y'),
+                'Sí' if cliente.activo else 'No',
+                total_equipos,
+                total_trabajos,
+                total_gastado,
+                cliente.notas or ''
+            ])
+        
+        output.seek(0)
+        return send_file(
+            io.BytesIO(output.getvalue().encode('utf-8')),
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name=f'clientes_{datetime.now().strftime("%Y%m%d")}.csv'
+        )
+    
+    except Exception as e:
+        logger.error(f"Error exportando clientes: {e}")
+        return jsonify({'error': str(e)}), 500
+
+# ---------------------------- MIGRACIÓN DE DATOS ----------------------------
+
+@app.route('/admin/migrar-clientes', methods=['POST'])
+def migrar_propietarios_a_clientes():
+    """Migrar propietarios existentes a la tabla de clientes"""
+    try:
+        # Obtener todos los propietarios únicos
+        propietarios = Equipment.select(Equipment.propietario).where(
+            Equipment.propietario.is_null(False) &
+            (Equipment.propietario != '')
+        ).distinct()
+        
+        migrados = 0
+        errores = []
+        
+        for equipo in propietarios:
+            propietario_nombre = equipo.propietario.strip()
+            
+            if not propietario_nombre:
+                continue
+                
+            try:
+                # Verificar si ya existe el cliente
+                cliente_existente = Cliente.select().where(Cliente.nombre == propietario_nombre).first()
+                
+                if not cliente_existente:
+                    # Crear nuevo cliente
+                    cliente = Cliente.create(
+                        nombre=propietario_nombre,
+                        tipo_cliente='Particular',  # Por defecto
+                        fecha_registro=datetime.now().date(),
+                        activo=True
+                    )
+                    migrados += 1
+                else:
+                    cliente = cliente_existente
+                
+                # Actualizar equipos para referenciar al cliente
+                Equipment.update(cliente=cliente).where(
+                    Equipment.propietario == propietario_nombre
+                ).execute()
+                
+            except Exception as e:
+                errores.append(f"Error con propietario '{propietario_nombre}': {str(e)}")
+                logger.error(f"Error migrando propietario {propietario_nombre}: {e}")
+        
+        # Limpiar caché
+        clear_cache_on_equipment_change()
+        
+        mensaje = f"Migración completada: {migrados} clientes creados"
+        if errores:
+            mensaje += f", {len(errores)} errores"
+            for error in errores[:3]:  # Mostrar solo los primeros 3 errores
+                flash(error, 'warning')
+        
+        flash(mensaje, 'success')
+        return redirect(url_for('admin_panel'))
+        
+    except Exception as e:
+        logger.error(f"Error en migración de clientes: {e}")
         logger.error(traceback.format_exc())
-        flash('Error procesando la solicitud', 'error')
-        return redirect(url_for('clientes_list'))
+        flash(f'Error durante la migración: {str(e)}', 'error')
+        return redirect(url_for('admin_panel'))
 
 # ---------------------------- RUTAS DE GESTIÓN DE DATOS ----------------------------
 
@@ -1082,6 +1427,7 @@ def admin_panel():
         # Estadísticas actuales
         total_equipment = Equipment.select().count()
         total_jobs = Job.select().count()
+        total_clientes = Cliente.select().count()
         
         # Buscar archivos Excel en el directorio
         excel_files = []
@@ -1096,6 +1442,7 @@ def admin_panel():
         return render_template('admin_panel.html',
                              total_equipment=total_equipment,
                              total_jobs=total_jobs,
+                             total_clientes=total_clientes,
                              excel_files=excel_files)
     
     except Exception as e:
@@ -1184,7 +1531,7 @@ def clear_all_data_route():
             return redirect(url_for('admin_panel'))
         
         # Limpiar datos
-        result = clear_all_data(Equipment, Job)
+        result = clear_all_data(Equipment, Job, Cliente)
         
         if result['success']:
             # Limpiar caché
@@ -1332,7 +1679,6 @@ def get_current_time():
 # ---------------------------- INICIALIZACIÓN ----------------------------
 
 if __name__ == '__main__':
-    init_db()
     # Para desarrollo local
     import os
     port = int(os.environ.get('PORT', 5000))

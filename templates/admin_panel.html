@@ -63,6 +63,15 @@
             </div>
         </div>
         <div class="col-6 col-md-3">
+            <div class="card text-center border-info">
+                <div class="card-body">
+                    <i class="bi bi-people fs-2 text-info mb-2"></i>
+                    <h4 class="mb-0">{{ total_clientes or 0 }}</h4>
+                    <small class="text-muted">Clientes</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
             <div class="card text-center border-warning">
                 <div class="card-body">
                     <i class="bi bi-database fs-2 text-warning mb-2"></i>
@@ -188,6 +197,21 @@
                         </a>
                     </div>
 
+                    <!-- Migración de clientes -->
+                    <div class="mb-4">
+                        <h6 class="text-info">
+                            <i class="bi bi-people"></i> Migración de Clientes
+                        </h6>
+                        <p class="small text-muted">
+                            Convierte propietarios existentes en clientes con información completa.
+                        </p>
+                        <form method="post" action="/admin/migrar-clientes" onsubmit="return confirmarMigracion()">
+                            <button type="submit" class="btn btn-info btn-sm w-100">
+                                <i class="bi bi-arrow-repeat"></i> Migrar Propietarios a Clientes
+                            </button>
+                        </form>
+                    </div>
+
                     <!-- Limpiar datos -->
                     <div class="mb-4">
                         <h6 class="text-danger">
@@ -253,6 +277,7 @@
                 </div>
                 <p>Se eliminarán <strong>TODOS</strong> los datos:</p>
                 <ul>
+                    <li>{{ total_clientes }} clientes registrados</li>
                     <li>{{ total_equipment }} equipos registrados</li>
                     <li>{{ total_jobs }} trabajos registrados</li>
                     <li>Todas las relaciones y historiales</li>
@@ -519,6 +544,10 @@
         } else {
             alert('Debe escribir "CONFIRMAR" exactamente para proceder.');
         }
+    }
+
+    function confirmarMigracion() {
+        return confirm('¿Está seguro de migrar los propietarios existentes a clientes?\n\nEsta acción:\n• Creará registros de clientes para cada propietario único\n• Vinculará los equipos existentes con los nuevos clientes\n• No eliminará ningún dato existente\n\n¿Continuar?');
     }
     
     // Agregar logs de actividad

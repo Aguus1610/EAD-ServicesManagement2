@@ -631,12 +631,16 @@ class DatabaseImporter:
         return imported_jobs
 
 
-def clear_all_data(equipment_model, job_model) -> Dict:
+def clear_all_data(equipment_model, job_model, cliente_model=None) -> Dict:
     """Limpiar todos los datos de la base de datos manteniendo la estructura"""
     try:
         # Contar registros antes de eliminar
         jobs_count = job_model.select().count()
         equipment_count = equipment_model.select().count()
+        clientes_count = 0
+        
+        if cliente_model:
+            clientes_count = cliente_model.select().count()
         
         # Eliminar todos los trabajos primero (por las foreign keys)
         job_model.delete().execute()
@@ -644,13 +648,23 @@ def clear_all_data(equipment_model, job_model) -> Dict:
         # Eliminar todos los equipos
         equipment_model.delete().execute()
         
-        logger.info(f"Base de datos limpiada: {equipment_count} equipos y {jobs_count} trabajos eliminados")
+        # Eliminar todos los clientes si se proporciona el modelo
+        if cliente_model:
+            cliente_model.delete().execute()
+        
+        message_parts = [f'{equipment_count} equipos', f'{jobs_count} trabajos']
+        if cliente_model:
+            message_parts.append(f'{clientes_count} clientes')
+        
+        message = f'Se eliminaron {", ".join(message_parts)}'
+        logger.info(f"Base de datos limpiada: {message}")
         
         return {
             'success': True,
             'equipment_deleted': equipment_count,
             'jobs_deleted': jobs_count,
-            'message': f'Se eliminaron {equipment_count} equipos y {jobs_count} trabajos'
+            'clientes_deleted': clientes_count,
+            'message': message
         }
         
     except Exception as e:
