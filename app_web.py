@@ -144,12 +144,32 @@ def init_db():
 @cache.memoize(timeout=600)  # Cache por 10 minutos
 def get_cached_equipment_count():
     """Obtener conteo de equipos con caché"""
-    return Equipment.select().count()
+    try:
+        return Equipment.select().count()
+    except Exception as e:
+        logger.error(f"Error obteniendo conteo de equipos: {e}")
+        # Intentar crear las tablas si no existen
+        try:
+            db.create_tables([Equipment, Job], safe=True)
+            return Equipment.select().count()
+        except Exception as e2:
+            logger.error(f"Error crítico con equipos: {e2}")
+            return 0
 
 @cache.memoize(timeout=600)  # Cache por 10 minutos  
 def get_cached_jobs_count():
     """Obtener conteo de trabajos con caché"""
-    return Job.select().count()
+    try:
+        return Job.select().count()
+    except Exception as e:
+        logger.error(f"Error obteniendo conteo de trabajos: {e}")
+        # Intentar crear las tablas si no existen
+        try:
+            db.create_tables([Equipment, Job], safe=True)
+            return Job.select().count()
+        except Exception as e2:
+            logger.error(f"Error crítico con trabajos: {e2}")
+            return 0
 
 @cache.memoize(timeout=300)  # Cache por 5 minutos
 def get_cached_upcoming_services():
@@ -268,37 +288,50 @@ def index():
 @app.route('/equipos')
 def equipos_list():
     """Lista de equipos con búsqueda"""
-    search = request.args.get('search', '')
-    equipos = Equipment.select().order_by(Equipment.marca, Equipment.modelo)
-    
-    if search:
-        equipos = equipos.where(
-            (Equipment.marca.contains(search)) |
-            (Equipment.modelo.contains(search)) |
-            (Equipment.n_serie.contains(search)) |
-            (Equipment.propietario.contains(search)) |
-            (Equipment.dominio.contains(search))
-        )
-    
-    equipos_list = []
-    for eq in equipos:
-        job_count = Job.select().where(Job.equipment == eq).count()
-        total_spent = Job.select(fn.SUM(Job.budget)).where(Job.equipment == eq).scalar() or 0
+    try:
+        search = request.args.get('search', '')
+        equipos = Equipment.select().order_by(Equipment.marca, Equipment.modelo)
         
-        equipos_list.append({
-            'id': eq.id,
-            'marca': eq.marca,
-            'modelo': eq.modelo,
-            'anio': eq.anio,
-            'n_serie': eq.n_serie,
-            'propietario': eq.propietario or '-',
-            'vehiculo': eq.vehiculo or '-',
-            'dominio': eq.dominio or '-',
-            'job_count': job_count,
-            'total_spent': total_spent
-        })
+        if search:
+            equipos = equipos.where(
+                (Equipment.marca.contains(search)) |
+                (Equipment.modelo.contains(search)) |
+                (Equipment.n_serie.contains(search)) |
+                (Equipment.propietario.contains(search)) |
+                (Equipment.dominio.contains(search))
+            )
+        
+        equipos_list = []
+        for eq in equipos:
+            job_count = Job.select().where(Job.equipment == eq).count()
+            total_spent = Job.select(fn.SUM(Job.budget)).where(Job.equipment == eq).scalar() or 0
+            
+            equipos_list.append({
+                'id': eq.id,
+                'marca': eq.marca,
+                'modelo': eq.modelo,
+                'anio': eq.anio,
+                'n_serie': eq.n_serie,
+                'propietario': eq.propietario or '-',
+                'vehiculo': eq.vehiculo or '-',
+                'dominio': eq.dominio or '-',
+                'job_count': job_count,
+                'total_spent': total_spent
+            })
+        
+        return render_template('equipos.html', equipos=equipos_list, search=search)
     
-    return render_template('equipos.html', equipos=equipos_list, search=search)
+    except Exception as e:
+        logger.error(f"Error en lista de equipos: {e}")
+        # Intentar crear las tablas si no existen
+        try:
+            db.create_tables([Equipment, Job], safe=True)
+            flash('Base de datos inicializada. Recargue la página.', 'info')
+        except Exception as e2:
+            logger.error(f"Error crítico inicializando BD: {e2}")
+            flash('Error de base de datos. Contacte al administrador.', 'error')
+        
+        return render_template('equipos.html', equipos=[], search='')
 
 @app.route('/equipo/<int:equipo_id>')
 def equipo_detail(equipo_id):
@@ -481,64 +514,85 @@ def equipo_delete(equipo_id):
 @app.route('/trabajos')
 def trabajos_list():
     """Lista de todos los trabajos con filtros"""
-    # Obtener parámetros de filtro
-    search = request.args.get('search', '')
-    equipo_id = request.args.get('equipo_id', '')
-    fecha_desde = request.args.get('fecha_desde', '')
-    fecha_hasta = request.args.get('fecha_hasta', '')
+    try:
+        # Obtener parámetros de filtro
+        search = request.args.get('search', '')
+        equipo_id = request.args.get('equipo_id', '')
+        fecha_desde = request.args.get('fecha_desde', '')
+        fecha_hasta = request.args.get('fecha_hasta', '')
+        
+        # Query base
+        trabajos = Job.select().join(Equipment).order_by(Job.date_done.desc())
+        
+        # Aplicar filtros
+        if search:
+            trabajos = trabajos.where(Job.description.contains(search))
+        if equipo_id:
+            trabajos = trabajos.where(Job.equipment == equipo_id)
+        if fecha_desde:
+            trabajos = trabajos.where(Job.date_done >= datetime.strptime(fecha_desde, '%Y-%m-%d').date())
+        if fecha_hasta:
+            trabajos = trabajos.where(Job.date_done <= datetime.strptime(fecha_hasta, '%Y-%m-%d').date())
+        
+        # Preparar datos para la vista
+        trabajos_list = []
+        total_trabajos = 0
+        total_presupuesto = 0
+        
+        for job in trabajos:
+            eq = job.equipment
+            trabajos_list.append({
+                'id': job.id,
+                'date': job.date_done.strftime('%d/%m/%Y'),
+                'equipo': f"{eq.marca} {eq.modelo} ({eq.anio})",
+                'equipo_id': eq.id,
+                'propietario': eq.propietario or '-',
+                'description': job.description,
+                'budget': job.budget,
+                'next_service': job.next_service_date.strftime('%d/%m/%Y') if job.next_service_date else '-',
+                'days_until': (job.next_service_date - datetime.now().date()).days if job.next_service_date else None,
+                'notes': job.notes or ''
+            })
+            total_trabajos += 1
+            total_presupuesto += job.budget
+        
+        # Obtener lista de equipos para el filtro
+        equipos_filter = []
+        for eq in Equipment.select().order_by(Equipment.marca, Equipment.modelo):
+            equipos_filter.append({
+                'id': eq.id,
+                'nombre': f"{eq.marca} {eq.modelo} ({eq.anio})"
+            })
+        
+        return render_template('trabajos.html', 
+                             trabajos=trabajos_list,
+                             total_trabajos=total_trabajos,
+                             total_presupuesto=total_presupuesto,
+                             equipos_filter=equipos_filter,
+                             search=search,
+                             equipo_id=equipo_id,
+                             fecha_desde=fecha_desde,
+                             fecha_hasta=fecha_hasta)
     
-    # Query base
-    trabajos = Job.select().join(Equipment).order_by(Job.date_done.desc())
-    
-    # Aplicar filtros
-    if search:
-        trabajos = trabajos.where(Job.description.contains(search))
-    if equipo_id:
-        trabajos = trabajos.where(Job.equipment == equipo_id)
-    if fecha_desde:
-        trabajos = trabajos.where(Job.date_done >= datetime.strptime(fecha_desde, '%Y-%m-%d').date())
-    if fecha_hasta:
-        trabajos = trabajos.where(Job.date_done <= datetime.strptime(fecha_hasta, '%Y-%m-%d').date())
-    
-    # Preparar datos para la vista
-    trabajos_list = []
-    total_trabajos = 0
-    total_presupuesto = 0
-    
-    for job in trabajos:
-        eq = job.equipment
-        trabajos_list.append({
-            'id': job.id,
-            'date': job.date_done.strftime('%d/%m/%Y'),
-            'equipo': f"{eq.marca} {eq.modelo} ({eq.anio})",
-            'equipo_id': eq.id,
-            'propietario': eq.propietario or '-',
-            'description': job.description,
-            'budget': job.budget,
-            'next_service': job.next_service_date.strftime('%d/%m/%Y') if job.next_service_date else '-',
-            'days_until': (job.next_service_date - datetime.now().date()).days if job.next_service_date else None,
-            'notes': job.notes or ''
-        })
-        total_trabajos += 1
-        total_presupuesto += job.budget
-    
-    # Obtener lista de equipos para el filtro
-    equipos_filter = []
-    for eq in Equipment.select().order_by(Equipment.marca, Equipment.modelo):
-        equipos_filter.append({
-            'id': eq.id,
-            'nombre': f"{eq.marca} {eq.modelo} ({eq.anio})"
-        })
-    
-    return render_template('trabajos.html', 
-                         trabajos=trabajos_list,
-                         total_trabajos=total_trabajos,
-                         total_presupuesto=total_presupuesto,
-                         equipos_filter=equipos_filter,
-                         search=search,
-                         equipo_id=equipo_id,
-                         fecha_desde=fecha_desde,
-                         fecha_hasta=fecha_hasta)
+    except Exception as e:
+        logger.error(f"Error en lista de trabajos: {e}")
+        # Intentar crear las tablas si no existen
+        try:
+            db.create_tables([Equipment, Job], safe=True)
+            flash('Base de datos inicializada. Recargue la página.', 'info')
+        except Exception as e2:
+            logger.error(f"Error crítico inicializando BD: {e2}")
+            flash('Error de base de datos. Contacte al administrador.', 'error')
+        
+        return render_template('trabajos.html', 
+                             trabajos=[],
+                             total_trabajos=0,
+                             total_presupuesto=0,
+                             equipos_filter=[],
+                             search='',
+                             equipo_id='',
+                             fecha_desde='',
+                             fecha_hasta='')
 
 @app.route('/trabajo/nuevo', methods=['GET', 'POST'])
 def trabajo_new_global():
