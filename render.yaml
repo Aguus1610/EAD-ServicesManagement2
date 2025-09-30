@@ -2,11 +2,44 @@ services:
   - type: web
     name: ead-oleohidraulica
     runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app_web:app --bind 0.0.0.0:$PORT
+    region: oregon # Cambia por tu región preferida
+    plan: starter # free, starter, standard, pro
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+      python render_init.py
+    startCommand: |
+      gunicorn app_web:app \
+        --bind 0.0.0.0:$PORT \
+        --workers 2 \
+        --timeout 120 \
+        --keep-alive 2 \
+        --max-requests 1000 \
+        --max-requests-jitter 100 \
+        --log-level info
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
       - key: FLASK_ENV
         value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_PATH
+        value: /opt/render/project/src/equipos.db
+      - key: UPLOAD_FOLDER
+        value: /tmp/uploads
+      - key: CACHE_TYPE
+        value: simple
+      - key: CACHE_DEFAULT_TIMEOUT
+        value: 300
+      - key: MAX_CONTENT_LENGTH
+        value: 16777216
     autoDeploy: true
+    healthCheckPath: /
+    
+  # Opcional: Servicio de base de datos PostgreSQL
+  # - type: pserv
+  #   name: ead-database
+  #   runtime: postgresql
+  #   plan: starter
+  #   region: oregon
